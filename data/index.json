@@ -1,0 +1,20 @@
+{
+  "issues": [
+    {
+      "date": "2026-09-09",
+      "file": "2026-09-09.json",
+      "itemCount": 18,
+      "status": "tracking"
+    },
+    {
+      "date": "2026-09-08",
+      "file": "2026-09-08.json",
+      "itemCount": 20
+    },
+    {
+      "date": "2026-09-07",
+      "file": "2026-09-07.json",
+      "itemCount": 10
+    }
+  ]
+}

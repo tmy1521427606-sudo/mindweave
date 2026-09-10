@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="认知日报新闻详情、推送评分和本地反馈。">
+    <title>内容详情｜认知日报</title>
+    <link rel="stylesheet" href="assets/styles.css">
+  </head>
+  <body class="detail-page">
+    <a class="skip-link" href="#article">跳到正文</a>
+
+    <header class="detail-topbar page-shell">
+      <a id="back-link" class="back-link" href="index.html">← 返回日报</a>
+      <p class="topbar-brand">认知日报 · DETAIL</p>
+      <a class="knowledge-link" href="knowledge.html">我的知识库</a>
+    </header>
+
+    <main>
+      <section id="detail-error" class="state-panel error-panel detail-state" hidden aria-live="assertive">
+        <h1>内容不存在</h1>
+        <p id="detail-error-message">无法找到这条内容。</p>
+        <a class="primary-button button-link" href="index.html">返回日报</a>
+      </section>
+
+      <article id="article" class="detail-article" hidden>
+        <header class="article-header">
+          <div id="detail-topics" class="chip-row"></div>
+          <h1 id="detail-title"></h1>
+          <p id="detail-value" class="article-deck"></p>
+          <div class="article-meta">
+            <span id="detail-date"></span>
+            <span id="detail-source"></span>
+            <span id="detail-score"></span>
+          </div>
+        </header>
+
+        <nav class="detail-nav detail-nav-top" aria-label="同一筛选结果中的上一篇和下一篇（顶部）">
+          <div class="nav-slot nav-previous">
+            <span class="nav-direction">上一篇</span>
+            <a id="top-previous-link" href="#"></a>
+            <span id="top-previous-boundary" class="nav-boundary">已经是第一篇</span>
+          </div>
+          <div class="nav-slot nav-next">
+            <span class="nav-direction">下一篇</span>
+            <a id="top-next-link" href="#"></a>
+            <span id="top-next-boundary" class="nav-boundary">已经是最后一篇</span>
+          </div>
+        </nav>
+
+        <section class="detail-section fact-section" aria-labelledby="fact-heading">
+          <p class="section-kicker">VERIFIED EVENT</p>
+          <h2 id="fact-heading">事件事实</h2>
+          <p id="detail-fact"></p>
+        </section>
+
+        <section id="background-section" class="detail-section background-section" aria-labelledby="background-heading" hidden>
+          <p class="section-kicker">CONTEXT</p>
+          <h2 id="background-heading">事件背景</h2>
+          <p id="detail-background"></p>
+        </section>
+
+        <section id="development-section" class="detail-section development-section" aria-labelledby="development-heading" hidden>
+          <p class="section-kicker">DEVELOPMENT</p>
+          <h2 id="development-heading">进展脉络</h2>
+          <ol id="detail-development" class="development-list"></ol>
+        </section>
+
+        <section id="impact-section" class="detail-section impact-section" aria-labelledby="impact-heading" hidden>
+          <p class="section-kicker">IMPACT</p>
+          <h2 id="impact-heading">影响对象</h2>
+          <dl id="detail-impact" class="impact-list"></dl>
+        </section>
+
+        <section id="source-view-section" class="detail-section source-view-section" aria-labelledby="source-view-heading">
+          <p class="section-kicker">SOURCE POSITION</p>
+          <h2 id="source-view-heading">来源方观点</h2>
+          <p id="detail-source-view"></p>
+        </section>
+
+        <section id="follow-up-section" class="detail-section follow-up-section" aria-labelledby="follow-up-heading" hidden>
+          <p class="section-kicker">FOLLOW-UP SERIES</p>
+          <h2 id="follow-up-heading">热点连续跟踪</h2>
+          <p id="detail-follow-up"></p>
+        </section>
+
+        <section id="model-comparison-section" class="detail-section model-comparison-section" aria-labelledby="model-comparison-heading" hidden>
+          <p class="section-kicker">MODEL COMPARISON</p>
+          <h2 id="model-comparison-heading">模型差异与效果</h2>
+          <p id="model-comparison-note" class="panel-note"></p>
+          <div class="comparison-scroll">
+            <table class="comparison-table">
+              <thead>
+                <tr><th scope="col">维度</th><th scope="col">本模型</th><th scope="col">对比对象</th><th scope="col">证据口径</th></tr>
+              </thead>
+              <tbody id="model-comparison-body"></tbody>
+            </table>
+          </div>
+          <p id="model-comparison-verdict" class="comparison-verdict"></p>
+        </section>
+
+        <section class="detail-section analysis-section" aria-labelledby="relevance-heading">
+          <p class="section-kicker">WHY IT MATTERS</p>
+          <h2 id="relevance-heading">为什么与你相关</h2>
+          <p id="detail-relevance"></p>
+        </section>
+
+        <section class="detail-section" aria-labelledby="concepts-heading">
+          <p class="section-kicker">CONCEPTS</p>
+          <h2 id="concepts-heading">基础概念</h2>
+          <dl id="detail-concepts" class="concept-list"></dl>
+        </section>
+
+        <section class="detail-section secondary-insights" aria-label="补充洞察">
+          <div class="secondary-insight-row">
+            <h2 id="connections-heading">跨领域连接</h2>
+            <p id="detail-connections"></p>
+          </div>
+          <div class="secondary-insight-row secondary-insight-risk">
+            <h2 id="uncertainty-heading">风险与不确定性</h2>
+            <p id="detail-uncertainty"></p>
+          </div>
+          <div class="secondary-insight-row secondary-insight-action">
+            <h2 id="action-heading">5 分钟行动</h2>
+            <p id="detail-action"></p>
+          </div>
+        </section>
+
+        <section class="detail-section" aria-labelledby="score-heading">
+          <div class="section-heading-row">
+            <div>
+              <p class="section-kicker">EDITORIAL SCORE</p>
+              <h2 id="score-heading">推送评分拆分</h2>
+            </div>
+            <strong id="score-total" class="large-total"></strong>
+          </div>
+          <p class="panel-note">评分用于排序和校准兴趣，不代表事实可信度。</p>
+          <div id="score-breakdown" class="score-breakdown"></div>
+        </section>
+
+        <section class="detail-section source-link-section" aria-labelledby="source-heading">
+          <p class="section-kicker">PRIMARY SOURCE</p>
+          <h2 id="source-heading">回到原始来源</h2>
+          <p id="source-description"></p>
+          <a id="source-link" class="primary-button button-link" href="index.html" target="_blank" rel="noopener noreferrer">打开一手来源 ↗</a>
+        </section>
+
+        <section class="detail-section feedback-section" aria-labelledby="feedback-title">
+          <p class="section-kicker">CALIBRATE THE NEXT ISSUE</p>
+          <h2 id="feedback-title">这条内容对你怎么样？</h2>
+          <p class="panel-note">兴趣信号会影响后续推荐，可随时取消。</p>
+          <div class="interest-controls detail-interest-controls">
+            <div class="interest-buttons" role="group" aria-label="常用兴趣操作">
+              <button type="button" data-interest-signal="bookmark" aria-pressed="false">收藏</button>
+              <button type="button" data-interest-signal="follow" aria-pressed="false">跟踪</button>
+            </div>
+            <details class="interest-more">
+              <summary>调整推荐与学习偏好</summary>
+              <div class="interest-buttons interest-preference-buttons" role="group" aria-label="推荐偏好（三选一）">
+                <button type="button" data-interest-signal="moreLikeThis" aria-pressed="false">更多同类</button>
+                <button type="button" data-interest-signal="lessLikeThis" aria-pressed="false">减少推荐</button>
+                <button type="button" data-interest-signal="irrelevant" aria-pressed="false">不感兴趣</button>
+              </div>
+              <div class="interest-buttons" role="group" aria-label="学习偏好">
+                <button type="button" data-interest-signal="needFoundation" aria-pressed="false">需要基础</button>
+                <button type="button" data-interest-signal="wantTechnical" aria-pressed="false">技术视角</button>
+                <button type="button" data-interest-signal="wantBusiness" aria-pressed="false">商业视角</button>
+                <button type="button" data-interest-signal="known" aria-pressed="false">我已很了解</button>
+              </div>
+            </details>
+            <p id="interest-status" class="feedback-status" role="status" aria-live="polite" aria-atomic="true"></p>
+          </div>
+          <h3 class="local-feedback-heading">本地阅读校准</h3>
+          <p class="panel-note">本地保留“有用”和阅读深度反馈，用于当前浏览器中的统计。</p>
+          <div class="feedback-buttons" role="group" aria-labelledby="feedback-title">
+            <button type="button" data-feedback="useful" aria-pressed="false">有用</button>
+            <button type="button" data-feedback="tooShallow" aria-pressed="false">太浅</button>
+            <button type="button" data-feedback="tooDeep" aria-pressed="false">太深</button>
+          </div>
+          <p id="feedback-status" class="feedback-status" aria-live="polite"></p>
+        </section>
+
+        <nav class="detail-nav" aria-label="同一筛选结果中的上一篇和下一篇（底部）">
+          <div class="nav-slot nav-previous">
+            <span class="nav-direction">上一篇</span>
+            <a id="previous-link" href="#"></a>
+            <span id="previous-boundary" class="nav-boundary">已经是第一篇</span>
+          </div>
+          <div class="nav-slot nav-next">
+            <span class="nav-direction">下一篇</span>
+            <a id="next-link" href="#"></a>
+            <span id="next-boundary" class="nav-boundary">已经是最后一篇</span>
+          </div>
+        </nav>
+      </article>
+    </main>
+
+    <div id="learning-agent-root"></div>
+    <script type="module" src="assets/detail.js"></script>
+  </body>
+</html>

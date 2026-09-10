@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="可追溯的知识卡片、主题 Wiki 与本地兴趣画像。">
+    <title>我的知识库｜认知日报</title>
+    <link rel="stylesheet" href="assets/styles.css">
+  </head>
+  <body class="knowledge-page">
+    <a class="skip-link" href="#knowledge-main">跳到知识库内容</a>
+    <header class="site-header page-shell">
+      <div>
+        <p class="eyebrow">PERSONAL KNOWLEDGE BASE</p>
+        <h1>我的知识库</h1>
+        <p class="issue-date">卡片来自本地资料与已保存的学习过程；每项事实均可回到来源。</p>
+      </div>
+      <a class="knowledge-link" href="index.html">返回日报</a>
+    </header>
+
+    <main id="knowledge-main" class="page-shell knowledge-main" tabindex="-1">
+      <div class="knowledge-tabs" role="tablist" aria-label="知识库视图">
+        <button id="cards-tab" class="knowledge-tab" type="button" role="tab" aria-selected="true" aria-controls="cards-panel">知识卡片</button>
+        <button id="wiki-tab" class="knowledge-tab" type="button" role="tab" aria-selected="false" aria-controls="wiki-panel" tabindex="-1">主题 Wiki</button>
+        <button id="profile-tab" class="knowledge-tab" type="button" role="tab" aria-selected="false" aria-controls="profile-panel" tabindex="-1">兴趣画像</button>
+      </div>
+
+      <section id="cards-panel" class="knowledge-panel" role="tabpanel" aria-labelledby="cards-tab">
+        <div class="knowledge-heading">
+          <div><p class="section-kicker">TRACEABLE CARDS</p><h2>知识卡片</h2></div>
+          <button id="export-knowledge" class="quiet-button" type="button">导出本地数据</button>
+        </div>
+        <form id="knowledge-filters" class="knowledge-filters">
+          <div><label for="knowledge-topic">主题</label><select id="knowledge-topic" name="topic"><option value="">全部主题</option></select></div>
+          <div><label for="knowledge-type">类型</label><select id="knowledge-type" name="type"><option value="">全部类型</option><option value="fact">事实</option><option value="concept">概念</option><option value="event">事件</option><option value="comparison">比较</option><option value="relation">关系</option><option value="inference">推断</option></select></div>
+          <div><label for="knowledge-status">状态</label><select id="knowledge-status" name="status"><option value="">全部状态</option><option value="verified">已核验</option><option value="needs_review">待核验</option><option value="rejected">已拒绝</option><option value="superseded">已替代</option></select></div>
+          <div><label for="knowledge-date">创建日期</label><input id="knowledge-date" name="date" type="date"></div>
+          <button class="primary-button" type="submit">应用筛选</button>
+        </form>
+        <p id="knowledge-status-message" class="knowledge-status" role="status" aria-live="polite">正在读取知识卡片…</p>
+        <ol id="knowledge-card-list" class="knowledge-card-list" aria-label="知识卡片列表"></ol>
+        <section id="knowledge-empty" class="state-panel" hidden><h3>没有匹配的知识卡片</h3><p>尝试更换主题、类型、状态或创建日期。</p></section>
+      </section>
+
+      <section id="wiki-panel" class="knowledge-panel" role="tabpanel" aria-labelledby="wiki-tab" hidden>
+        <div class="knowledge-heading"><div><p class="section-kicker">TOPIC MAP</p><h2>主题 Wiki</h2></div></div>
+        <form id="wiki-form" class="knowledge-filters"><div><label for="wiki-topic">选择主题</label><select id="wiki-topic" required><option value="">请选择主题</option></select></div><button class="primary-button" type="submit">查看 Wiki</button></form>
+        <p id="wiki-status-message" class="knowledge-status" role="status" aria-live="polite">选择一个主题以查看来源明确的定义、事件与关系。</p>
+        <div id="wiki-content" class="wiki-content"></div>
+      </section>
+
+      <section id="profile-panel" class="knowledge-panel" role="tabpanel" aria-labelledby="profile-tab" hidden>
+        <div class="knowledge-heading"><div><p class="section-kicker">LOCAL SIGNALS</p><h2>兴趣画像</h2></div></div>
+        <p id="profile-status-message" class="knowledge-status" role="status" aria-live="polite">正在读取本地兴趣信号…</p>
+        <section id="profile-content" class="profile-content" aria-label="兴趣画像"></section>
+      </section>
+    </main>
+    <footer class="site-footer page-shell"><p>事实、来源方观点与 Agent 推断保持区分；导出只包含本地可恢复数据。</p></footer>
+    <script type="module" src="assets/knowledge.js"></script>
+  </body>
+</html>
