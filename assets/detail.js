@@ -252,7 +252,7 @@ function renderError(message) {
   elements.article.hidden = true;
   elements["detail-error"].hidden = false;
   elements["detail-error-message"].textContent = message;
-  document.title = "内容不存在｜认知日报";
+  document.title = "内容不存在｜知脉 MindWeave";
 }
 
 function renderTopics(item, issueStatus) {
@@ -439,7 +439,7 @@ function renderItem(issue, item, viewState) {
   currentIssue = issue;
   currentItem = item;
   const title = availableText(item.title);
-  document.title = `${title}｜认知日报`;
+  document.title = `${title}｜知脉 MindWeave`;
   elements["detail-error"].hidden = true;
   elements.article.hidden = false;
   renderTopics(item, issue.status);

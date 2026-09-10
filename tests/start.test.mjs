@@ -91,7 +91,7 @@ test("start script reports the safe contract when server console output changes"
     TAVILY_API_KEY: "fake-tavily-key",
   });
 
-  assert.match(lines[0], /^认知日报已打开：http:\/\/127\.0\.0\.1:\d+\/$/);
+  assert.match(lines[0], /^知脉 MindWeave 已打开：http:\/\/127\.0\.0\.1:\d+\/$/);
   assert.deepEqual(lines.slice(1), [
     "豆包：已配置",
     "联网搜索：已配置",
@@ -126,5 +126,5 @@ test("start script fails clearly without claiming readiness when health is unava
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /本地服务未能启动/);
-  assert.equal(result.stdout.includes("认知日报已打开"), false);
+  assert.equal(result.stdout.includes("知脉 MindWeave 已打开"), false);
 });

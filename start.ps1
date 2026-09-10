@@ -49,7 +49,7 @@ try {
   }
 
   Start-Process $url
-  Write-Host "认知日报已打开：$url"
+  Write-Host "知脉 MindWeave 已打开：$url"
   Write-Host $chatStatus
   Write-Host $webSearchStatus
   Write-Host "知识库：$databasePath"
