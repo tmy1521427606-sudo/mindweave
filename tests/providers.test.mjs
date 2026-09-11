@@ -86,6 +86,32 @@ test("Tavily limits results to five and preserves a Chinese query", async () => 
   assert.equal(JSON.parse(requests[0].options.body).max_results, 5);
 });
 
+test("Tavily accepts bounded daily-search options", async () => {
+  let body;
+  const client = createTavilyClient({
+    apiKey: "fake",
+    fetchImpl: async (_url, options) => {
+      body = JSON.parse(options.body);
+      return jsonResponse({ results: Array.from({ length: 12 }, (_, index) => ({ title: String(index) })) });
+    },
+  });
+  const results = await client.search("昨日 Agent", {
+    maxResults: 10,
+    startDate: "2026-09-10",
+    endDate: "2026-09-10",
+    includeRawContent: true,
+  });
+  assert.equal(results.length, 10);
+  assert.deepEqual(body, {
+    query: "昨日 Agent",
+    max_results: 10,
+    start_date: "2026-09-10",
+    end_date: "2026-09-10",
+    include_raw_content: "markdown",
+  });
+  await assert.rejects(() => client.search("x", { maxResults: 11 }), /maxResults/);
+});
+
 test("Tavily without an API key is explicitly unavailable before fetch", async () => {
   let called = false;
   const client = createTavilyClient({ fetchImpl: async () => { called = true; } });
