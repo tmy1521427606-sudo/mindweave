@@ -25,6 +25,7 @@ import {
   writeStoredJson,
 } from "./shared.js";
 import { mountLearningAgent } from "./agent.js";
+import { initializeDailyGeneration, versionFileForEntry } from "./daily-generation.js";
 
 const interestLabels = {
   bookmark: "收藏",
@@ -67,6 +68,7 @@ const app = {
   explicitSort: false,
   allItemIds: [],
   historyLoadFailed: false,
+  version: null,
 };
 
 let archiveSearchTimer = null;
@@ -414,6 +416,7 @@ function persistView() {
   const params = viewStateToParams(app.view, {
     includeSort: app.explicitSort || SORTS.includes(app.manualSort),
   });
+  if (app.version) params.set("version", String(app.version));
   history.replaceState(null, "", `${location.pathname}?${params}`);
   writeStoredJson(localStorage, STORAGE_KEYS.viewState, app.view);
 }
@@ -656,7 +659,8 @@ function makeNewsCard(item, index) {
 
   const heading = document.createElement("h3");
   const link = document.createElement("a");
-  link.href = `detail.html?date=${encodeURIComponent(app.issue.date)}&id=${encodeURIComponent(item.id)}&sort=${encodeURIComponent(app.view.sort)}`;
+  const versionParam = app.version ? `&version=${app.version}` : "";
+  link.href = `detail.html?date=${encodeURIComponent(app.issue.date)}&id=${encodeURIComponent(item.id)}&sort=${encodeURIComponent(app.view.sort)}${versionParam}`;
   link.textContent = item.title;
   link.addEventListener("click", () => {
     writeStoredJson(localStorage, STORAGE_KEYS.scrollPosition, window.scrollY);
@@ -775,7 +779,7 @@ function renderIssueNavigation() {
 async function loadIssue(date) {
   const issueRef = app.manifest.issues.find((entry) => entry.date === date);
   if (!issueRef) throw new Error(`找不到 ${date} 的日报。`);
-  const issue = await loadJson(`data/${issueRef.file}`);
+  const issue = await loadJson(`data/${versionFileForEntry(issueRef, app.version)}`);
   app.issue = issue;
   app.view.date = issue.date;
   renderIssueNavigation();
@@ -874,6 +878,8 @@ async function initialize() {
     populateDates();
     const storedView = readStoredJson(localStorage, STORAGE_KEYS.viewState, null);
     const params = new URLSearchParams(location.search);
+    const requestedVersion = Number(params.get("version"));
+    app.version = Number.isInteger(requestedVersion) && requestedVersion > 0 ? requestedVersion : null;
     app.view = resolveViewState(
       params,
       safeObject(storedView),
@@ -889,6 +895,7 @@ async function initialize() {
     renderIssueNavigation();
     await loadIssue(app.view.date);
     await loadMetricIds();
+    await initializeDailyGeneration();
     const savedPosition = readStoredJson(localStorage, STORAGE_KEYS.scrollPosition, 0);
     if (typeof savedPosition !== "number") {
       localStorage.removeItem(STORAGE_KEYS.scrollPosition);
@@ -918,6 +925,7 @@ elements["filter-panel"].addEventListener("input", async (event) => {
 elements["issue-date"].addEventListener("change", async () => {
   if (!app.manifest) return;
   app.view = readControls();
+  app.version = null;
   writeStoredJson(localStorage, STORAGE_KEYS.scrollPosition, 0);
   try {
     await loadIssue(elements["issue-date"].value);
