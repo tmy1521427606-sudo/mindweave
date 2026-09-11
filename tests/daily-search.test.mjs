@@ -11,7 +11,7 @@ function results(count, prefix = "official") {
   }));
 }
 
-test("searches the previous Shanghai calendar day without expanding when enough candidates exist", async () => {
+test("searches one calendar day with a non-empty Tavily range without expanding", async () => {
   const calls = [];
   const plan = buildSearchPlan({
     date: "2026-09-11", focusMore: [], focusLess: [], temporaryFocus: "", profile: {},
@@ -24,7 +24,7 @@ test("searches the previous Shanghai calendar day without expanding when enough 
     plan,
   });
   assert.ok(candidates.length >= 10);
-  assert.ok(calls.every(({ options }) => options.topic === "news" && options.startDate === "2026-09-10" && options.endDate === "2026-09-10"));
+  assert.ok(calls.every(({ options }) => options.topic === "news" && options.startDate === "2026-09-10" && options.endDate === "2026-09-11"));
   assert.equal(calls.length, plan.yesterday.queries.length);
 });
 
