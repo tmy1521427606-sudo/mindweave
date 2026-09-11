@@ -15,6 +15,15 @@ export function generationStage(stage) {
   return STAGES[stage] ?? ["正在处理", 0];
 }
 
+export function generationCounts(job) {
+  const base = `候选 ${job.candidates ?? 0} · 已完成 ${job.completedItems ?? 0} · 搜索 ${job.searchCalls ?? 0} 次 · 模型 ${job.modelCalls ?? 0} 次`;
+  const discarded = job.discarded ?? {};
+  const values = [discarded.missingDate, discarded.outsideWindow, discarded.duplicate, discarded.invalid].map((value) => value ?? 0);
+  return values.some((value) => value > 0)
+    ? `${base} · 淘汰：缺日期 ${values[0]}、超范围 ${values[1]}、重复 ${values[2]}、其他 ${values[3]}`
+    : base;
+}
+
 export function generationPayload({ mode, date, focusMore, focusLess, temporaryFocus, yesterdayComment }) {
   return { mode, date, focusMore: [...new Set(focusMore)], focusLess: [...new Set(focusLess)], temporaryFocus: temporaryFocus.trim(), yesterdayComment: yesterdayComment.trim() };
 }
@@ -95,7 +104,7 @@ export async function initializeDailyGeneration({
       const [label, progress] = generationStage(job.stage);
       elements["generation-progress-bar"].value = progress;
       elements["generation-stage"].textContent = label;
-      elements["generation-counts"].textContent = `候选 ${job.candidates ?? 0} · 已完成 ${job.completedItems ?? 0} · 搜索 ${job.searchCalls ?? 0} 次 · 模型 ${job.modelCalls ?? 0} 次`;
+      elements["generation-counts"].textContent = generationCounts(job);
       elements["generation-status"].textContent = job.stage === "failed"
         ? job.error?.message ?? "日报生成失败，请稍后重试。"
         : `${label}，已用时 ${formatElapsed(job.elapsedMs)}。`;

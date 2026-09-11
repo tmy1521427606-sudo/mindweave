@@ -24,7 +24,7 @@ test("searches the previous Shanghai calendar day without expanding when enough 
     plan,
   });
   assert.ok(candidates.length >= 10);
-  assert.ok(calls.every(({ options }) => options.startDate === "2026-09-10" && options.endDate === "2026-09-10"));
+  assert.ok(calls.every(({ options }) => options.topic === "news" && options.startDate === "2026-09-10" && options.endDate === "2026-09-10"));
   assert.equal(calls.length, plan.yesterday.queries.length);
 });
 
@@ -60,6 +60,7 @@ test("deduplicates tracking URLs and rejects unsafe result hosts", async () => {
 
 test("rejects candidates without a trustworthy publication date", async () => {
   const plan = buildSearchPlan({ date: "2026-09-11", focusMore: [], focusLess: [], temporaryFocus: "", profile: {} });
+  const progress = [];
   const candidates = await collectCandidates({
     search: async () => [
       { title: "Undated", url: "https://example.com/undated", content: "The model must not invent a date." },
@@ -67,10 +68,13 @@ test("rejects candidates without a trustworthy publication date", async () => {
       { title: "Dated", url: "https://example.com/dated", content: "A dated source.", published_date: "2026-09-10" },
     ],
     plan,
+    onProgress: (value) => progress.push(value),
   });
   assert.ok(candidates.every((candidate) => candidate.publishedDate === "2026-09-10"));
   assert.ok(candidates.every((candidate) => !candidate.url.endsWith("/undated")));
   assert.ok(candidates.every((candidate) => !candidate.url.endsWith("/old")));
+  assert.ok(progress.at(-1).discarded.missingDate > 0);
+  assert.ok(progress.at(-1).discarded.outsideWindow > 0);
 });
 
 test("continues successful directions when one query fails and reports progress", async () => {

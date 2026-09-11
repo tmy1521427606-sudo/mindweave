@@ -97,6 +97,7 @@ test("Tavily accepts bounded daily-search options", async () => {
   });
   const results = await client.search("昨日 Agent", {
     maxResults: 10,
+    topic: "news",
     startDate: "2026-09-10",
     endDate: "2026-09-10",
     includeRawContent: true,
@@ -105,11 +106,13 @@ test("Tavily accepts bounded daily-search options", async () => {
   assert.deepEqual(body, {
     query: "昨日 Agent",
     max_results: 10,
+    topic: "news",
     start_date: "2026-09-10",
     end_date: "2026-09-10",
     include_raw_content: "markdown",
   });
   await assert.rejects(() => client.search("x", { maxResults: 11 }), /maxResults/);
+  await assert.rejects(() => client.search("x", { topic: "video" }), /topic/);
 });
 
 test("Tavily without an API key is explicitly unavailable before fetch", async () => {
