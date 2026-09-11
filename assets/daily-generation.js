@@ -17,11 +17,14 @@ export function generationStage(stage) {
 
 export function generationCounts(job) {
   const base = `候选 ${job.candidates ?? 0} · 已完成 ${job.completedItems ?? 0} · 搜索 ${job.searchCalls ?? 0} 次 · 模型 ${job.modelCalls ?? 0} 次`;
+  const completion = job.result?.partial && job.result.reason === "generation_timeout"
+    ? ` · 达到时间上限，已保留 ${job.completedItems ?? 0} 条`
+    : "";
   const discarded = job.discarded ?? {};
   const values = [discarded.missingDate, discarded.outsideWindow, discarded.duplicate, discarded.invalid].map((value) => value ?? 0);
   return values.some((value) => value > 0)
-    ? `${base} · 淘汰：缺日期 ${values[0]}、超范围 ${values[1]}、重复 ${values[2]}、其他 ${values[3]}`
-    : base;
+    ? `${base}${completion} · 淘汰：缺日期 ${values[0]}、超范围 ${values[1]}、重复 ${values[2]}、其他 ${values[3]}`
+    : `${base}${completion}`;
 }
 
 export function generationPayload({ mode, date, focusMore, focusLess, temporaryFocus, yesterdayComment }) {

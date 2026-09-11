@@ -28,6 +28,16 @@ test("generation progress explains why search results were discarded", () => {
   }), "候选 8 · 已完成 0 · 搜索 12 次 · 模型 0 次 · 淘汰：缺日期 9、超范围 4、重复 2、其他 1");
 });
 
+test("generation progress marks a time-limited issue that kept completed items", () => {
+  assert.match(generationCounts({
+    candidates: 42,
+    completedItems: 14,
+    searchCalls: 8,
+    modelCalls: 8,
+    result: { partial: true, reason: "generation_timeout" },
+  }), /达到时间上限，已保留 14 条/);
+});
+
 test("version file selection falls back to the active issue", () => {
   const ref = { file: "2026-09-11-v2.json", versions: [{ version: 1, file: "2026-09-11-v1.json" }, { version: 2, file: "2026-09-11-v2.json" }] };
   assert.equal(versionFileForEntry(ref, 1), "2026-09-11-v1.json");

@@ -222,7 +222,7 @@ test("reports sanitized failure diagnostics without exposing provider messages",
   assert.deepEqual(failures[0].error, { name: "DailyContentError", code: "model_failed", status: null });
   assert.deepEqual(failures[0].cause, { name: "ProviderError", code: "invalid_json", status: 400 });
   assert.equal(failures[0].stage, "generating");
-  assert.equal(failures[0].modelCalls, 2);
+  assert.equal(failures[0].modelCalls, 4);
   assert.equal(JSON.stringify(failures[0]).includes("secret-key"), false);
 });
 
@@ -272,6 +272,48 @@ test("hard timeout fails the job without publishing later", async () => {
   const final = await terminal(service, jobId);
   assert.equal(final.error.code, "generation_timeout");
   assert.deepEqual((await readIssueManifest(dataDir)).issues, []);
+});
+
+test("hard timeout publishes at least ten completed items instead of discarding them", async () => {
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), "mindweave-partial-timeout-"));
+  await writeFile(path.join(dataDir, "index.json"), JSON.stringify({ issues: [] }));
+  const db = openDatabase(":memory:");
+  initializeSchema(db);
+  let searchCall = 0;
+  let modelCall = 0;
+  const service = createDailyGenerationService({
+    db, dataDir,
+    search: async () => {
+      searchCall += 1;
+      return Array.from({ length: 2 }, (_, index) => ({
+        title: `Source ${searchCall}-${index}`,
+        url: `https://partial-${searchCall}-${index}.example.com/release`,
+        content: "A sufficiently detailed official source excerpt for generation.",
+        published_date: "2026-09-10",
+      }));
+    },
+    doubao: { chat: async (request) => {
+      modelCall += 1;
+      if (modelCall > 5) return new Promise(() => {});
+      const body = JSON.parse(request.messages.at(-1).content);
+      return { items: body.untrustedCandidates.map((candidate) => generatedItem(candidate)) };
+    } },
+    syncIssues: async () => {},
+    clock: () => new Date("2026-09-11T01:00:00.000Z"),
+    hardTimeoutMs: 200,
+  });
+
+  const final = await terminal(service, service.start(input()).jobId);
+  const manifest = await readIssueManifest(dataDir);
+  assert.equal(manifest.issues.length, 1);
+  const issue = JSON.parse(await readFile(path.join(dataDir, manifest.issues[0].file), "utf8"));
+
+  assert.equal(final.stage, "completed");
+  assert.equal(final.result.partial, true);
+  assert.equal(final.result.reason, "generation_timeout");
+  assert.equal(final.completedItems, 10);
+  assert.equal(issue.items.length, 10);
+  assert.deepEqual(issue.generation, { status: "time_limited", targetItems: 16 });
 });
 
 test("full and supplement create immutable successive versions", async () => {
