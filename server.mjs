@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { appendFileSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -26,6 +27,7 @@ export function createConfiguredDailyGeneration({
   fetchImpl = fetch,
   clock,
   syncIssues,
+  onFailure,
 } = {}) {
   if (!env.ARK_API_KEY?.trim() || !env.DOUBAO_CHAT_MODEL?.trim() || !env.TAVILY_API_KEY?.trim()) return null;
   const doubao = createDoubaoClient({
@@ -43,6 +45,7 @@ export function createConfiguredDailyGeneration({
     search: (query, options) => tavily.search(query, options),
     resolvePublishedDate,
     clock,
+    onFailure,
     syncIssues: syncIssues ?? (() => syncIssueDirectory(db, dataDir)),
   });
 }
@@ -142,7 +145,12 @@ async function startServer(port) {
   initializeSchema(db);
   await syncIssueDirectory(db, path.join(siteRoot, "data"));
   const dataDir = path.join(siteRoot, "data");
-  const dailyGeneration = createConfiguredDailyGeneration({ db, dataDir });
+  const errorLogPath = path.join(varDir, "mindweave-errors.log");
+  const dailyGeneration = createConfiguredDailyGeneration({
+    db,
+    dataDir,
+    onFailure: (record) => appendFileSync(errorLogPath, `${JSON.stringify(record)}\n`, "utf8"),
+  });
   const server = createStaticServer(siteRoot, createApiHandler({
     db,
     agent: createConfiguredAgent({ db }),

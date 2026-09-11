@@ -7,7 +7,7 @@ import { initializeSchema, openDatabase } from "../lib/database.mjs";
 import { createDailyGenerationService } from "../lib/daily-generation.mjs";
 import { readIssueManifest } from "../lib/issue-versions.mjs";
 
-async function fixture({ searchFailure = false, hardTimeoutMs = 10_000 } = {}) {
+async function fixture({ searchFailure = false, hardTimeoutMs = 10_000, onFailure } = {}) {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), "mindweave-generation-"));
   await writeFile(path.join(dataDir, "index.json"), JSON.stringify({ issues: [] }));
   const db = openDatabase(":memory:");
@@ -53,6 +53,7 @@ async function fixture({ searchFailure = false, hardTimeoutMs = 10_000 } = {}) {
     db, dataDir, doubao, search, hardTimeoutMs,
     clock: () => new Date("2026-09-11T01:00:00.000Z"),
     syncIssues: async () => { syncCalls += 1; },
+    onFailure,
   });
   return { dataDir, db, service, get syncCalls() { return syncCalls; } };
 }
@@ -185,6 +186,44 @@ test("maps provider failure safely and never publishes a partial issue", async (
   assert.equal(JSON.stringify(final).includes("private provider failure"), false);
   assert.deepEqual((await readIssueManifest(context.dataDir)).issues, []);
   assert.equal(context.syncCalls, 0);
+});
+
+test("reports sanitized failure diagnostics without exposing provider messages", async () => {
+  const failures = [];
+  const context = await fixture({ onFailure: async (record) => failures.push(record) });
+  const providerError = Object.assign(new Error("secret-key and private response body"), {
+    name: "ProviderError",
+    code: "invalid_json",
+    status: 400,
+  });
+  let searchCall = 0;
+  const service = createDailyGenerationService({
+    db: context.db,
+    dataDir: context.dataDir,
+    search: async () => {
+      searchCall += 1;
+      return Array.from({ length: 2 }, (_, index) => ({
+        title: `Source ${index}`,
+        url: `https://diagnostic-${searchCall}-${index}.example.com/release`,
+        content: "Public source context.",
+        published_date: "2026-09-10",
+      }));
+    },
+    doubao: { chat: async () => { throw providerError; } },
+    syncIssues: async () => {},
+    clock: () => new Date("2026-09-11T01:00:00.000Z"),
+    onFailure: async (record) => failures.push(record),
+  });
+
+  const final = await terminal(service, service.start(input()).jobId);
+
+  assert.equal(final.stage, "failed");
+  assert.equal(failures.length, 1);
+  assert.deepEqual(failures[0].error, { name: "DailyContentError", code: "model_failed", status: null });
+  assert.deepEqual(failures[0].cause, { name: "ProviderError", code: "invalid_json", status: 400 });
+  assert.equal(failures[0].stage, "generating");
+  assert.equal(failures[0].modelCalls, 2);
+  assert.equal(JSON.stringify(failures[0]).includes("secret-key"), false);
 });
 
 test("restores the previous manifest when database synchronization fails", async () => {

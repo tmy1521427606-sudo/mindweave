@@ -12,6 +12,7 @@ try {
 }
 $url = "http://127.0.0.1:$port/"
 $databasePath = [System.IO.Path]::GetFullPath((Join-Path $siteRoot 'var\cognitive-daily.sqlite'))
+$errorLogPath = [System.IO.Path]::GetFullPath((Join-Path $siteRoot 'var\mindweave-errors.log'))
 $chatConfigured = -not [string]::IsNullOrWhiteSpace($env:ARK_API_KEY) -and -not [string]::IsNullOrWhiteSpace($env:DOUBAO_CHAT_MODEL)
 $webSearchConfigured = -not [string]::IsNullOrWhiteSpace($env:TAVILY_API_KEY)
 $dailyGenerationConfigured = $chatConfigured -and $webSearchConfigured
@@ -56,6 +57,7 @@ try {
   Write-Host $webSearchStatus
   Write-Host $dailyGenerationStatus
   Write-Host "知识库：$databasePath"
+  Write-Host "错误日志：$errorLogPath"
   Wait-Process -Id $server.Id
 } finally {
   if ($server -and -not $server.HasExited) {

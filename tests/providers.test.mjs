@@ -125,6 +125,21 @@ test("Doubao response errors are sanitized and typed", async () => {
   );
 });
 
+test("Doubao invalid JSON exposes only a safe diagnostic code", async () => {
+  const client = createDoubaoClient({
+    apiKey: "ark-secret-key",
+    chatModel: "glm-5-3-flash-260828",
+    fetchImpl: async () => jsonResponse({ choices: [{ message: { content: "private malformed output" } }] }),
+  });
+
+  await assert.rejects(
+    () => client.chat({ messages: [] }),
+    (error) => error instanceof ProviderError
+      && error.code === "invalid_json"
+      && error.message.includes("private malformed output") === false,
+  );
+});
+
 test("Tavily limits results to five and preserves a Chinese query", async () => {
   const requests = [];
   const client = createTavilyClient({
