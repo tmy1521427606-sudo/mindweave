@@ -14,8 +14,10 @@ $url = "http://127.0.0.1:$port/"
 $databasePath = [System.IO.Path]::GetFullPath((Join-Path $siteRoot 'var\cognitive-daily.sqlite'))
 $chatConfigured = -not [string]::IsNullOrWhiteSpace($env:ARK_API_KEY) -and -not [string]::IsNullOrWhiteSpace($env:DOUBAO_CHAT_MODEL)
 $webSearchConfigured = -not [string]::IsNullOrWhiteSpace($env:TAVILY_API_KEY)
+$dailyGenerationConfigured = $chatConfigured -and $webSearchConfigured
 $chatStatus = if ($chatConfigured) { '豆包：已配置' } else { '豆包：未配置' }
 $webSearchStatus = if ($webSearchConfigured) { '联网搜索：已配置' } else { '联网搜索：未配置' }
+$dailyGenerationStatus = if ($dailyGenerationConfigured) { '日报生成：已配置' } else { '日报生成：未配置' }
 
 $serverOutput = [System.IO.Path]::GetTempFileName()
 $serverError = [System.IO.Path]::GetTempFileName()
@@ -52,6 +54,7 @@ try {
   Write-Host "知脉 MindWeave 已打开：$url"
   Write-Host $chatStatus
   Write-Host $webSearchStatus
+  Write-Host $dailyGenerationStatus
   Write-Host "知识库：$databasePath"
   Wait-Process -Id $server.Id
 } finally {

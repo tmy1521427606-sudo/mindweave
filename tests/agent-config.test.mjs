@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createConfiguredAgent } from "../server.mjs";
+import { createConfiguredAgent, createConfiguredDailyGeneration } from "../server.mjs";
 import { initializeSchema, openDatabase } from "../lib/database.mjs";
 
 test("server leaves chat unavailable without key or chat model", () => {
@@ -37,4 +37,24 @@ test("missing Tavily configuration yields safe uncertainty with chat still confi
   const result = await agent.answer({ question: "今天有什么新模型" });
   assert.equal(result.savedCards.length, 0);
   assert.match(result.remainingUncertainty.join(""), /无法完成/);
+});
+
+test("daily generation requires model and search configuration", () => {
+  const db = openDatabase(":memory:");
+  initializeSchema(db);
+  for (const env of [
+    {},
+    { ARK_API_KEY: "fake", DOUBAO_CHAT_MODEL: "fake" },
+    { TAVILY_API_KEY: "fake" },
+  ]) {
+    assert.equal(createConfiguredDailyGeneration({ db, env, fetchImpl() { assert.fail("no calls"); } }), null);
+  }
+  const configured = createConfiguredDailyGeneration({
+    db,
+    env: { ARK_API_KEY: "fake", DOUBAO_CHAT_MODEL: "chat", TAVILY_API_KEY: "search" },
+    fetchImpl() { assert.fail("creation makes no calls"); },
+    syncIssues: async () => {},
+  });
+  assert.equal(typeof configured.start, "function");
+  assert.equal(typeof configured.get, "function");
 });
