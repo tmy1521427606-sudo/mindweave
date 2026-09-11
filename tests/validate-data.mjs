@@ -34,7 +34,26 @@ for (const issueRef of index.issues) {
   assert.match(issueRef.date, isoDate, `invalid issue date: ${issueRef.date}`);
   assert.ok(!issueDates.has(issueRef.date), `duplicate issue date: ${issueRef.date}`);
   issueDates.add(issueRef.date);
-  assert.match(issueRef.file, /^\d{4}-\d{2}-\d{2}\.json$/, `${issueRef.date}: invalid file`);
+  assert.match(issueRef.file, /^\d{4}-\d{2}-\d{2}(?:-v[1-9]\d*)?\.json$/, `${issueRef.date}: invalid file`);
+  if (issueRef.versions !== undefined) {
+    assert.ok(Array.isArray(issueRef.versions) && issueRef.versions.length > 0, `${issueRef.date}: versions missing`);
+    assert.ok(Number.isInteger(issueRef.currentVersion) && issueRef.currentVersion > 0, `${issueRef.date}: invalid currentVersion`);
+    const versionNumbers = issueRef.versions.map((entry) => entry.version);
+    assert.deepEqual(
+      versionNumbers,
+      [...new Set(versionNumbers)].sort((left, right) => left - right),
+      `${issueRef.date}: versions must be unique and ascending`,
+    );
+    for (const version of issueRef.versions) {
+      assert.match(version.file, new RegExp(`^${issueRef.date}-v${version.version}\\.json$`), `${issueRef.date}: invalid version file`);
+      await readJson(version.file);
+    }
+    assert.equal(
+      issueRef.versions.find((entry) => entry.version === issueRef.currentVersion)?.file,
+      issueRef.file,
+      `${issueRef.date}: current version file mismatch`,
+    );
+  }
   assert.ok(
     issueRef.itemCount >= 10 && issueRef.itemCount <= 30,
     `${issueRef.date}: itemCount must be between 10 and 30`,
