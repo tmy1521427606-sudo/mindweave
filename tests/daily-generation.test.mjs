@@ -7,7 +7,7 @@ import { initializeSchema, openDatabase } from "../lib/database.mjs";
 import { createDailyGenerationService } from "../lib/daily-generation.mjs";
 import { readIssueManifest } from "../lib/issue-versions.mjs";
 
-async function fixture({ searchFailure = false, hardTimeoutMs = 10_000, onFailure } = {}) {
+async function fixture({ searchFailure = false, hardTimeoutMs = 10_000, onFailure, doubaoOverride } = {}) {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), "mindweave-generation-"));
   await writeFile(path.join(dataDir, "index.json"), JSON.stringify({ issues: [] }));
   const db = openDatabase(":memory:");
@@ -24,7 +24,7 @@ async function fixture({ searchFailure = false, hardTimeoutMs = 10_000, onFailur
       published_date: "2026-09-10",
     }));
   };
-  const doubao = { async chat(request) {
+  const doubao = doubaoOverride ?? { async chat(request) {
     if (request.responseSchema?.name === "daily_comment_signals") return { signals: [] };
     const body = JSON.parse(request.messages.at(-1).content);
     return { items: body.untrustedCandidates.map((candidate) => ({
@@ -113,6 +113,30 @@ test("publishes and indexes only after every generation stage succeeds", async (
   assert.deepEqual(final.discarded, { missingDate: 0, outsideWindow: 0, duplicate: 0, invalid: 0 });
   assert.equal(context.syncCalls, 1);
   assert.equal((await readIssueManifest(context.dataDir)).issues[0].date, "2026-09-11");
+});
+
+test("publishes a marked issue after one model batch fails twice", async () => {
+  const context = await fixture({
+    doubaoOverride: { async chat(request) {
+      const body = JSON.parse(request.messages.at(-1).content);
+      if (body.untrustedCandidates.some((candidate) => candidate.id === "candidate-1")) {
+        throw Object.assign(new Error("slow batch"), { code: "provider_timeout" });
+      }
+      return { items: body.untrustedCandidates.map((candidate) => generatedItem(candidate)) };
+    } },
+  });
+
+  const final = await terminal(context.service, context.service.start(input()).jobId);
+  const manifest = await readIssueManifest(context.dataDir);
+  assert.equal(manifest.issues.length, 1);
+  const issue = JSON.parse(await readFile(path.join(context.dataDir, manifest.issues[0].file), "utf8"));
+
+  assert.equal(final.stage, "completed");
+  assert.equal(final.failedBatches, 1);
+  assert.deepEqual({ partial: final.result.partial, reason: final.result.reason, failedBatches: final.result.failedBatches }, {
+    partial: true, reason: "partial_failures", failedBatches: 1,
+  });
+  assert.deepEqual(issue.generation, { status: "partial_failures", targetItems: 16, failedBatches: 1 });
 });
 
 test("wires the latest issue date and historical sources into candidate collection", async () => {
@@ -222,7 +246,7 @@ test("reports sanitized failure diagnostics without exposing provider messages",
   assert.deepEqual(failures[0].error, { name: "DailyContentError", code: "model_failed", status: null });
   assert.deepEqual(failures[0].cause, { name: "ProviderError", code: "invalid_json", status: 400 });
   assert.equal(failures[0].stage, "generating");
-  assert.equal(failures[0].modelCalls, 4);
+  assert.equal(failures[0].modelCalls, 16);
   assert.equal(JSON.stringify(failures[0]).includes("secret-key"), false);
 });
 
@@ -313,7 +337,7 @@ test("hard timeout publishes at least ten completed items instead of discarding 
   assert.equal(final.result.reason, "generation_timeout");
   assert.equal(final.completedItems, 10);
   assert.equal(issue.items.length, 10);
-  assert.deepEqual(issue.generation, { status: "time_limited", targetItems: 16 });
+  assert.deepEqual(issue.generation, { status: "time_limited", targetItems: 16, failedBatches: 0 });
 });
 
 test("full and supplement create immutable successive versions", async () => {

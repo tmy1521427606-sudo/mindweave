@@ -38,6 +38,17 @@ test("generation progress marks a time-limited issue that kept completed items",
   }), /达到时间上限，已保留 14 条/);
 });
 
+test("generation progress reports skipped model batches", () => {
+  assert.match(generationCounts({
+    candidates: 42,
+    completedItems: 18,
+    searchCalls: 8,
+    modelCalls: 12,
+    failedBatches: 2,
+    result: { partial: true, reason: "partial_failures", failedBatches: 2 },
+  }), /跳过失败批次 2 个，已保留 18 条/);
+});
+
 test("version file selection falls back to the active issue", () => {
   const ref = { file: "2026-09-11-v2.json", versions: [{ version: 1, file: "2026-09-11-v1.json" }, { version: 2, file: "2026-09-11-v2.json" }] };
   assert.equal(versionFileForEntry(ref, 1), "2026-09-11-v1.json");

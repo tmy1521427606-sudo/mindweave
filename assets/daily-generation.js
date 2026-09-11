@@ -17,9 +17,14 @@ export function generationStage(stage) {
 
 export function generationCounts(job) {
   const base = `候选 ${job.candidates ?? 0} · 已完成 ${job.completedItems ?? 0} · 搜索 ${job.searchCalls ?? 0} 次 · 模型 ${job.modelCalls ?? 0} 次`;
-  const completion = job.result?.partial && job.result.reason === "generation_timeout"
-    ? ` · 达到时间上限，已保留 ${job.completedItems ?? 0} 条`
-    : "";
+  let completion = "";
+  if (job.result?.partial && job.result.reason === "generation_timeout") {
+    completion = ` · 达到时间上限，已保留 ${job.completedItems ?? 0} 条`;
+  } else if (job.result?.partial && job.result.reason === "partial_failures") {
+    completion = ` · 跳过失败批次 ${job.failedBatches ?? job.result.failedBatches ?? 0} 个，已保留 ${job.completedItems ?? 0} 条`;
+  } else if ((job.failedBatches ?? 0) > 0) {
+    completion = ` · 已跳过失败批次 ${job.failedBatches} 个`;
+  }
   const discarded = job.discarded ?? {};
   const values = [discarded.missingDate, discarded.outsideWindow, discarded.duplicate, discarded.invalid].map((value) => value ?? 0);
   return values.some((value) => value > 0)

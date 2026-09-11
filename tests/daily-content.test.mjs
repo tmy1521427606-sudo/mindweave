@@ -116,6 +116,32 @@ test("runs two detailed generation batches concurrently while preserving item or
   assert.deepEqual(issue.items.map((item) => item.source.url), candidates(10).map((candidate) => candidate.url));
 });
 
+test("skips a batch that fails twice and continues generating enough reliable items", async () => {
+  const progress = [];
+  const doubao = { async chat(request) {
+    const body = JSON.parse(request.messages.at(-1).content);
+    if (body.untrustedCandidates.some((candidate) => candidate.id === "candidate-1")) {
+      throw Object.assign(new Error("slow batch"), { code: "provider_timeout" });
+    }
+    return {
+      items: body.untrustedCandidates.map((candidate) => generated(candidate.id, candidate.sequence)),
+    };
+  } };
+
+  const issue = await generateIssueContent({
+    doubao,
+    date: "2026-09-11",
+    candidates: candidates(12),
+    preferences: {},
+    existingItems: [],
+    onProgress: (value) => progress.push(value),
+  });
+
+  assert.equal(issue.items.length, 10);
+  assert.deepEqual(issue.generation, { status: "partial_failures", targetItems: 12, failedBatches: 1 });
+  assert.equal(progress.at(-1).failedBatches, 1);
+});
+
 test("rejects generated items that cite an unknown candidate", async () => {
   await assert.rejects(
     generateIssueContent({ doubao: fakeDoubao({ invalidSource: true }), date: "2026-09-11", candidates: candidates(), preferences: {}, existingItems: [] }),
