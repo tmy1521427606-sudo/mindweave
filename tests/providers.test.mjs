@@ -4,6 +4,7 @@ import {
   ProviderError,
   ProviderUnavailableError,
   createDoubaoClient,
+  createSourceDateResolver,
   createTavilyClient,
 } from "../lib/providers.mjs";
 
@@ -121,6 +122,46 @@ test("Tavily without an API key is explicitly unavailable before fetch", async (
 
   await assert.rejects(() => client.search("需要联网验证"), ProviderUnavailableError);
   assert.equal(called, false);
+});
+
+test("source date resolver reads a structured publication date from a public page", async () => {
+  const resolver = createSourceDateResolver({
+    lookup: async () => [{ address: "93.184.216.34", family: 4 }],
+    fetchImpl: async () => new Response(`<!doctype html><html><head>
+      <script type="application/ld+json">{"datePublished":"2026-09-10T08:30:00+08:00"}</script>
+    </head></html>`, { headers: { "content-type": "text/html; charset=utf-8" } }),
+  });
+
+  assert.equal(await resolver("https://official.example.com/release"), "2026-09-10");
+});
+
+test("source date resolver recognizes GitHub-style relative-time metadata", async () => {
+  const resolver = createSourceDateResolver({
+    lookup: async () => [{ address: "140.82.114.4", family: 4 }],
+    fetchImpl: async () => new Response('<relative-time datetime="2026-09-09T15:45:00Z">Sep 9</relative-time>', {
+      headers: { "content-type": "text/html" },
+    }),
+  });
+  assert.equal(await resolver("https://github.com/example/project/releases/tag/v1"), "2026-09-09");
+});
+
+test("source date resolver refuses private destinations before fetching", async () => {
+  let fetched = false;
+  const resolver = createSourceDateResolver({
+    lookup: async () => [{ address: "192.168.1.20", family: 4 }],
+    fetchImpl: async () => { fetched = true; return new Response(""); },
+  });
+
+  assert.equal(await resolver("https://internal.example.com/release"), null);
+  assert.equal(fetched, false);
+});
+
+test("source date resolver safely rejects a malformed redirect", async () => {
+  const resolver = createSourceDateResolver({
+    lookup: async () => [{ address: "93.184.216.34", family: 4 }],
+    fetchImpl: async () => new Response(null, { status: 302, headers: { location: "https://[invalid" } }),
+  });
+  assert.equal(await resolver("https://official.example.com/release"), null);
 });
 
 test("provider timeouts retain a sanitized timeout code for API mapping", async () => {

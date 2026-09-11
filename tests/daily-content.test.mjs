@@ -92,6 +92,25 @@ test("does not accept a publication date invented by the model", async () => {
   );
 });
 
+test("forces an undated technical candidate into a visibly unverified learning item", async () => {
+  const inputCandidates = candidates();
+  inputCandidates[0] = {
+    ...inputCandidates[0],
+    publishedDate: null,
+    dateStatus: "unverified",
+    contentTypeHint: "learning",
+  };
+  const issue = await generateIssueContent({
+    doubao: fakeDoubao(), date: "2026-09-11", candidates: inputCandidates, preferences: {}, existingItems: [],
+  });
+  const item = issue.items.find((entry) => entry.source.url === inputCandidates[0].url);
+  assert.equal(item.publishedDate, null);
+  assert.equal(item.dateStatus, "unverified");
+  assert.equal(item.contentType, "learning");
+  assert.equal(item.isBackfill, false);
+  assert.match(item.uncertainty, /发布日期待核验/);
+});
+
 test("retries a failed model batch once", async () => {
   const doubao = fakeDoubao({ failFirst: true });
   const issue = await generateIssueContent({ doubao, date: "2026-09-11", candidates: candidates(10), preferences: {}, existingItems: [] });

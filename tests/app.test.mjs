@@ -222,6 +222,7 @@ test("stale latest issue uses a recent-issue label instead of a today label", ()
 });
 
 test("timing labels distinguish live additions from follow-up material", () => {
+  assert.equal(itemTimingLabel({ dateStatus: "unverified", isBackfill: false }, "tracking"), "日期待核验");
   assert.equal(itemTimingLabel({ isBackfill: false }, "tracking"), "今日新增");
   assert.equal(itemTimingLabel({ isBackfill: true }, "tracking"), "热点跟进");
   assert.equal(itemTimingLabel({ isBackfill: false }, "final"), "当日");

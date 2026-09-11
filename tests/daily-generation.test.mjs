@@ -106,7 +106,7 @@ test("publishes and indexes only after every generation stage succeeds", async (
   const final = await terminal(context.service, jobId);
   assert.equal(final.stage, "completed");
   assert.equal(final.result.version, 1);
-  assert.equal(final.completedItems, 12);
+  assert.equal(final.completedItems, 16);
   assert.ok(final.searchCalls >= 6);
   assert.ok(final.modelCalls >= 3);
   assert.deepEqual(final.discarded, { missingDate: 0, outsideWindow: 0, duplicate: 0, invalid: 0 });

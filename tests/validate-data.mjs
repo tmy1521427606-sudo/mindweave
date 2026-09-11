@@ -94,7 +94,12 @@ for (const issueRef of index.issues) {
     assert.ok(nonEmptyText(item.id), `${issueRef.file}: item id missing`);
     assert.ok(!ids.has(item.id), `${label}: duplicate id`);
     ids.add(item.id);
-    assert.match(item.publishedDate, isoDate, `${label}: invalid date`);
+    if (item.dateStatus === "unverified") {
+      assert.equal(item.publishedDate, null, `${label}: unverified date must be null`);
+      assert.equal(item.contentType, "learning", `${label}: unverified item must be learning`);
+    } else {
+      assert.match(item.publishedDate, isoDate, `${label}: invalid date`);
+    }
     assert.equal(typeof item.isBackfill, "boolean", `${label}: invalid isBackfill`);
     assert.ok(
       ["news", "learning"].includes(item.contentType),
@@ -163,11 +168,15 @@ for (const issueRef of index.issues) {
         `${item.id}: impact`,
       );
     }
-    assert.equal(
-      item.isBackfill,
-      item.publishedDate !== issue.date,
-      `${label}: backfill/date mismatch`,
-    );
+    if (item.dateStatus === "unverified") {
+      assert.equal(item.isBackfill, false, `${label}: unverified item cannot claim backfill timing`);
+    } else {
+      assert.equal(
+        item.isBackfill,
+        item.publishedDate !== issue.date,
+        `${label}: backfill/date mismatch`,
+      );
+    }
     assert.ok(item.score && typeof item.score === "object", `${label}: score missing`);
     let total = 0;
     for (const [field, limit] of Object.entries(scoreLimits)) {

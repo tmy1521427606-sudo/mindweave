@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { createApiHandler } from "./lib/api.mjs";
 import { initializeSchema, openDatabase, syncIssueDirectory } from "./lib/database.mjs";
 import { createLearningAgent } from "./lib/agent.mjs";
-import { createDoubaoClient, createTavilyClient } from "./lib/providers.mjs";
+import { createDoubaoClient, createSourceDateResolver, createTavilyClient } from "./lib/providers.mjs";
 import { createDailyGenerationService } from "./lib/daily-generation.mjs";
 import { listIssueVersions } from "./lib/issue-versions.mjs";
 
@@ -35,11 +35,13 @@ export function createConfiguredDailyGeneration({
     fetchImpl,
   });
   const tavily = createTavilyClient({ apiKey: env.TAVILY_API_KEY, fetchImpl });
+  const resolvePublishedDate = createSourceDateResolver({ fetchImpl });
   return createDailyGenerationService({
     db,
     dataDir,
     doubao,
     search: (query, options) => tavily.search(query, options),
+    resolvePublishedDate,
     clock,
     syncIssues: syncIssues ?? (() => syncIssueDirectory(db, dataDir)),
   });

@@ -672,7 +672,7 @@ function makeNewsCard(item, index) {
   const meta = textElement(
     "p",
     "card-meta",
-    `${formatDate(item.publishedDate)} · ${item.source?.name ?? "本期未提供"} · 第 ${index + 1} 条`,
+    `${item.dateStatus === "unverified" ? "日期待核验" : formatDate(item.publishedDate)} · ${item.source?.name ?? "本期未提供"} · 第 ${index + 1} 条`,
   );
   const scoreExplanation = textElement(
     "p",

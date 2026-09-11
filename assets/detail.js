@@ -448,7 +448,9 @@ function renderItem(issue, item, viewState) {
   renderTopics(item, issue.status);
   elements["detail-title"].textContent = title;
   elements["detail-value"].textContent = availableText(item.oneLineValue);
-  elements["detail-date"].textContent = `${item.isBackfill ? "回溯日期" : "发布日期"}：${formatDate(item.publishedDate)}`;
+  elements["detail-date"].textContent = item.dateStatus === "unverified"
+    ? "发布日期：待核验"
+    : `${item.isBackfill ? "回溯日期" : "发布日期"}：${formatDate(item.publishedDate)}`;
   elements["detail-source"].textContent = `来源：${availableText(item.source?.name)}`;
   renderPersonalizedTotal(item);
   elements["detail-fact"].textContent = availableText(item.fact);

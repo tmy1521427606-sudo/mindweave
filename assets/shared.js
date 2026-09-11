@@ -183,6 +183,7 @@ export function issueDateLabel(issue, { todayDate = shanghaiDate(), latestDate }
 }
 
 export function itemTimingLabel(item, issueStatus) {
+  if (item.dateStatus === "unverified") return "日期待核验";
   if (issueStatus === "tracking") {
     return item.isBackfill ? "热点跟进" : "今日新增";
   }

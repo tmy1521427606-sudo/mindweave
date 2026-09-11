@@ -48,6 +48,16 @@ test("limits catch-up coverage to the latest seven days", () => {
   );
 });
 
+test("search plan includes dedicated domestic model and Agent coverage", () => {
+  const plan = buildSearchPlan({ date: "2026-09-11", focusMore: [], focusLess: [], temporaryFocus: "", profile: {} });
+  const queries = plan.yesterday.queries.map((entry) => entry.query).join(" ");
+  assert.match(queries, /豆包/);
+  assert.match(queries, /通义/);
+  assert.match(queries, /混元/);
+  assert.match(queries, /DeepSeek/);
+  assert.ok(plan.yesterday.queries.length >= 8);
+});
+
 test("expands to seven days only when yesterday has fewer than ten candidates", async () => {
   const calls = [];
   const plan = buildSearchPlan({ date: "2026-09-11", focusMore: [], focusLess: [], temporaryFocus: "", profile: {} });
@@ -95,7 +105,7 @@ test("excludes normalized source URLs that appeared in earlier issues", async ()
   assert.ok(progress.at(-1).discarded.duplicate > 0);
 });
 
-test("rejects candidates without a trustworthy publication date", async () => {
+test("rejects missing dates from news while retaining them only for technical learning", async () => {
   const plan = buildSearchPlan({ date: "2026-09-11", focusMore: [], focusLess: [], temporaryFocus: "", profile: {} });
   const progress = [];
   const candidates = await collectCandidates({
@@ -107,11 +117,39 @@ test("rejects candidates without a trustworthy publication date", async () => {
     plan,
     onProgress: (value) => progress.push(value),
   });
-  assert.ok(candidates.every((candidate) => candidate.publishedDate === "2026-09-10"));
-  assert.ok(candidates.every((candidate) => !candidate.url.endsWith("/undated")));
+  assert.ok(candidates.every((candidate) => candidate.publishedDate === "2026-09-10"
+    || candidate.publishedDate === null && candidate.contentTypeHint === "learning" && candidate.dateStatus === "unverified"));
+  assert.ok(candidates.every((candidate) => !candidate.url.endsWith("/undated") || candidate.contentTypeHint === "learning"));
   assert.ok(candidates.every((candidate) => !candidate.url.endsWith("/old")));
   assert.ok(progress.at(-1).discarded.missingDate > 0);
   assert.ok(progress.at(-1).discarded.outsideWindow > 0);
+});
+
+test("verifies a missing Tavily date from source metadata before accepting news", async () => {
+  const plan = buildSearchPlan({ date: "2026-09-11", focusMore: [], focusLess: [], temporaryFocus: "", profile: {} });
+  const resolved = [];
+  const candidates = await collectCandidates({
+    search: async () => [{ title: "Official release", url: "https://example.com/release", content: "Release details." }],
+    resolvePublishedDate: async (url) => { resolved.push(url); return "2026-09-10"; },
+    plan,
+  });
+  assert.ok(resolved.length > 0);
+  assert.ok(candidates.some((candidate) => candidate.publishedDate === "2026-09-10" && candidate.dateStatus === "verified"));
+});
+
+test("keeps an unresolved technical result only as an unverified learning candidate", async () => {
+  const plan = buildSearchPlan({ date: "2026-09-11", focusMore: [], focusLess: [], temporaryFocus: "", profile: {} });
+  const candidates = await collectCandidates({
+    search: async (query) => query.includes("framework")
+      ? [{ title: "Agent architecture", url: "https://example.com/agent", content: "Technical architecture details." }]
+      : [],
+    resolvePublishedDate: async () => null,
+    plan,
+  });
+  assert.ok(candidates.some((candidate) => candidate.url === "https://example.com/agent"
+    && candidate.publishedDate === null
+    && candidate.dateStatus === "unverified"
+    && candidate.contentTypeHint === "learning"));
 });
 
 test("continues successful directions when one query fails and reports progress", async () => {
