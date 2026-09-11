@@ -39,6 +39,28 @@ test("Doubao endpoint IDs use Chat Completions and parse cited JSON content", as
   assert.equal(JSON.parse(requests[0].options.body).model, "ep-team-chat-model");
 });
 
+test("GLM model IDs use Chat Completions with a schema instruction", async () => {
+  const requests = [];
+  const schema = { name: "brief", strict: false, schema: { type: "object", required: ["items"] } };
+  const client = createDoubaoClient({
+    apiKey: "ark-secret-key",
+    chatModel: "glm-5-3-flash-260828",
+    baseUrl: "https://ark.example.test/api/v3",
+    fetchImpl: async (url, options) => {
+      requests.push({ url, options });
+      return jsonResponse({ choices: [{ message: { content: '{"items":[]}' } }] });
+    },
+  });
+
+  assert.deepEqual(await client.chat({ messages: [{ role: "user", content: "生成日报" }], responseSchema: schema }), { items: [] });
+  assert.equal(requests[0].url, "https://ark.example.test/api/v3/chat/completions");
+  const body = JSON.parse(requests[0].options.body);
+  assert.equal(body.response_format, undefined);
+  assert.equal(body.messages[0].role, "system");
+  assert.match(body.messages[0].content, /只输出 JSON/);
+  assert.match(body.messages[0].content, /"required":\["items"\]/);
+});
+
 test("Doubao model IDs use Responses API and parse structured output", async () => {
   const requests = [];
   const schema = { name: "brief", strict: true, schema: { type: "object" } };
