@@ -15,11 +15,11 @@ function jsonResponse(body, status = 200) {
   });
 }
 
-test("Doubao sends configured model and parses cited JSON content", async () => {
+test("Doubao endpoint IDs use Chat Completions and parse cited JSON content", async () => {
   const requests = [];
   const client = createDoubaoClient({
     apiKey: "ark-secret-key",
-    chatModel: "team-chat-model",
+    chatModel: "ep-team-chat-model",
     embeddingModel: "team-embedding-model",
     baseUrl: "https://ark.example.test/api/v3",
     fetchImpl: async (url, options) => {
@@ -36,7 +36,41 @@ test("Doubao sends configured model and parses cited JSON content", async () => 
   assert.equal(requests.length, 1);
   assert.equal(requests[0].url, "https://ark.example.test/api/v3/chat/completions");
   assert.equal(requests[0].options.headers.Authorization, "Bearer ark-secret-key");
-  assert.equal(JSON.parse(requests[0].options.body).model, "team-chat-model");
+  assert.equal(JSON.parse(requests[0].options.body).model, "ep-team-chat-model");
+});
+
+test("Doubao model IDs use Responses API and parse structured output", async () => {
+  const requests = [];
+  const schema = { name: "brief", strict: true, schema: { type: "object" } };
+  const client = createDoubaoClient({
+    apiKey: "ark-secret-key",
+    chatModel: "deepseek-v4-flash-260425",
+    baseUrl: "https://ark.example.test/api/v3",
+    fetchImpl: async (url, options) => {
+      requests.push({ url, options });
+      return jsonResponse({ output: [{ type: "message", content: [{ type: "output_text", text: '{"items":[]}' }] }] });
+    },
+  });
+
+  assert.deepEqual(await client.chat({ messages: [{ role: "user", content: "生成日报" }], responseSchema: schema }), { items: [] });
+  assert.equal(requests[0].url, "https://ark.example.test/api/v3/responses");
+  assert.deepEqual(JSON.parse(requests[0].options.body), {
+    model: "deepseek-v4-flash-260425",
+    input: [{ role: "user", content: "生成日报" }],
+    stream: false,
+    text: { format: { type: "json_schema", ...schema } },
+  });
+});
+
+test("Doubao Responses API accepts top-level output text", async () => {
+  const client = createDoubaoClient({
+    apiKey: "ark-secret-key",
+    chatModel: "deepseek-v4-flash-260425",
+    baseUrl: "https://ark.example.test/api/v3",
+    fetchImpl: async () => jsonResponse({ output_text: '{"items":[]}' }),
+  });
+
+  assert.deepEqual(await client.chat({ messages: [] }), { items: [] });
 });
 
 test("Doubao uses the configured embedding model", async () => {
