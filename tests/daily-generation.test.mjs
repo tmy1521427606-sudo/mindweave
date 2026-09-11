@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -67,6 +67,30 @@ const input = (overrides = {}) => ({
   ...overrides,
 });
 
+function generatedItem(candidate) {
+  return {
+    candidateId: candidate.id,
+    title: `解读 ${candidate.title}`,
+    publishedDate: candidate.publishedDate,
+    contentType: "news",
+    region: "全球",
+    priority: "关注",
+    topics: candidate.topics,
+    fact: "候选来源明确记录了这一项近期变化。",
+    sourceView: null,
+    background: "这是用于解释事件背景的完整文字，帮助读者理解其技术边界、行业位置以及为什么现在值得关注。",
+    development: ["此前处于旧状态。", "当前来源记录了新变化。"],
+    impact: [{ audience: "行业学习者", text: "应结合真实任务评估影响。" }],
+    relevance: "它连接个人关注方向与近期变化。",
+    concepts: [{ name: "可核验来源", explanation: "能够回到原始页面检查的资料。" }],
+    connections: "可连接电商、数据、金融和 Agent 工程。",
+    uncertainty: "尚未进行独立效果复测。",
+    action: "打开来源并记录一项可验证结论。",
+    oneLineValue: `理解 ${candidate.title} 的实际边界。`,
+    score: { interest: 20, impact: 15, source: 20, novelty: 10, crossDomain: 8, actionability: 5 },
+  };
+}
+
 async function terminal(service, jobId) {
   for (let attempt = 0; attempt < 200; attempt += 1) {
     const snapshot = service.get(jobId);
@@ -115,6 +139,36 @@ test("maps provider failure safely and never publishes a partial issue", async (
   assert.equal(JSON.stringify(final).includes("private provider failure"), false);
   assert.deepEqual((await readIssueManifest(context.dataDir)).issues, []);
   assert.equal(context.syncCalls, 0);
+});
+
+test("restores the previous manifest when database synchronization fails", async () => {
+  const context = await fixture();
+  let searchCall = 0;
+  const service = createDailyGenerationService({
+    db: context.db,
+    dataDir: context.dataDir,
+    doubao: { chat: async (request) => {
+      const body = JSON.parse(request.messages.at(-1).content);
+      return { items: body.untrustedCandidates.map((candidate) => generatedItem(candidate)) };
+    } },
+    search: async () => {
+      searchCall += 1;
+      return Array.from({ length: 2 }, (_, index) => ({
+        title: `Source ${index}`,
+        url: `https://sync-failure-${searchCall}-${index}.example.com/release`,
+        content: "A sufficiently detailed official source excerpt for generation.",
+        published_date: "2026-09-10",
+      }));
+    },
+    syncIssues: async () => { throw new Error("database unavailable"); },
+    clock: () => new Date("2026-09-11T01:00:00.000Z"),
+  });
+  const { jobId } = service.start(input());
+  const final = await terminal(service, jobId);
+  assert.equal(final.stage, "failed");
+  assert.equal(final.error.code, "save_failed");
+  assert.deepEqual((await readIssueManifest(context.dataDir)).issues, []);
+  assert.equal((await readdir(context.dataDir)).some((file) => /-v\d+\.json$/.test(file)), false);
 });
 
 test("hard timeout fails the job without publishing later", async () => {

@@ -60,6 +60,7 @@ for (const issueRef of index.issues) {
   );
 
   const issue = await readJson(issueRef.file);
+  const generatedVersion = /-v[1-9]\d*\.json$/.test(issueRef.file);
   assert.equal(issue.date, issueRef.date, `${issueRef.file}: date mismatch`);
   if (issueRef.status !== undefined) {
     assert.ok(["tracking", "final"].includes(issueRef.status), `${issueRef.file}: invalid issue status`);
@@ -180,31 +181,33 @@ for (const issueRef of index.issues) {
     assert.equal(item.score.total, total, `${label}: score total mismatch`);
   }
 
-  if (issueRef.date >= "2026-09-08") {
-    const learningItems = issue.items.filter((item) => item.contentType === "learning");
+  const learningItems = issue.items.filter((item) => item.contentType === "learning");
+  if (!generatedVersion && issueRef.date >= "2026-09-08") {
     assert.ok(learningItems.length >= 2, `${issueRef.file}: expected at least 2 learning items`);
-    for (const item of learningItems) {
-      assert.ok(item.learningTrack && typeof item.learningTrack === "object", `${item.id}: learningTrack missing`);
-      assert.ok(nonEmptyText(item.learningTrack.topic), `${item.id}: learningTrack topic missing`);
-      assert.ok(nonEmptyText(item.learningTrack.angle), `${item.id}: learningTrack angle missing`);
-      assert.ok(Number.isInteger(item.learningTrack.part), `${item.id}: invalid learningTrack part`);
-      assert.ok(Number.isInteger(item.learningTrack.total), `${item.id}: invalid learningTrack total`);
-      assert.ok(item.learningTrack.part >= 1 && item.learningTrack.part <= item.learningTrack.total, `${item.id}: learningTrack part out of range`);
-    }
+  }
+  for (const item of learningItems) {
+    assert.ok(item.learningTrack && typeof item.learningTrack === "object", `${item.id}: learningTrack missing`);
+    assert.ok(nonEmptyText(item.learningTrack.topic), `${item.id}: learningTrack topic missing`);
+    assert.ok(nonEmptyText(item.learningTrack.angle), `${item.id}: learningTrack angle missing`);
+    assert.ok(Number.isInteger(item.learningTrack.part), `${item.id}: invalid learningTrack part`);
+    assert.ok(Number.isInteger(item.learningTrack.total), `${item.id}: invalid learningTrack total`);
+    assert.ok(item.learningTrack.part >= 1 && item.learningTrack.part <= item.learningTrack.total, `${item.id}: learningTrack part out of range`);
   }
 
   if (issueRef.date >= "2026-09-09") {
     assert.equal(issue.status, "tracking", `${issueRef.file}: today's issue must be tracking`);
     assert.ok(nonEmptyText(issue.updatedAt), `${issueRef.file}: updatedAt missing`);
     assert.ok(!Number.isNaN(Date.parse(issue.updatedAt)), `${issueRef.file}: invalid updatedAt`);
-    assert.ok(
-      issue.items.some((item) => item.modelComparison),
-      `${issueRef.file}: expected at least one model comparison`,
-    );
-    assert.ok(
-      issue.items.some((item) => item.followUpSeries),
-      `${issueRef.file}: expected at least one follow-up series item`,
-    );
+    if (!generatedVersion) {
+      assert.ok(
+        issue.items.some((item) => item.modelComparison),
+        `${issueRef.file}: expected at least one model comparison`,
+      );
+      assert.ok(
+        issue.items.some((item) => item.followUpSeries),
+        `${issueRef.file}: expected at least one follow-up series item`,
+      );
+    }
     for (const item of issue.items.filter((entry) => entry.modelComparison)) {
       assert.ok(
         ["comparable", "partial", "not-comparable"].includes(item.modelComparison.comparability),

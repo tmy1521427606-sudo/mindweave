@@ -58,6 +58,21 @@ test("deduplicates tracking URLs and rejects unsafe result hosts", async () => {
   assert.ok(candidates.every((entry) => !/127\.0\.0\.1|10\.0\.0\.8/.test(entry.url)));
 });
 
+test("rejects candidates without a trustworthy publication date", async () => {
+  const plan = buildSearchPlan({ date: "2026-09-11", focusMore: [], focusLess: [], temporaryFocus: "", profile: {} });
+  const candidates = await collectCandidates({
+    search: async () => [
+      { title: "Undated", url: "https://example.com/undated", content: "The model must not invent a date." },
+      { title: "Old", url: "https://example.com/old", content: "Outside the requested window.", published_date: "2026-08-01" },
+      { title: "Dated", url: "https://example.com/dated", content: "A dated source.", published_date: "2026-09-10" },
+    ],
+    plan,
+  });
+  assert.ok(candidates.every((candidate) => candidate.publishedDate === "2026-09-10"));
+  assert.ok(candidates.every((candidate) => !candidate.url.endsWith("/undated")));
+  assert.ok(candidates.every((candidate) => !candidate.url.endsWith("/old")));
+});
+
 test("continues successful directions when one query fails and reports progress", async () => {
   const plan = buildSearchPlan({ date: "2026-09-11", focusMore: ["数据 × Agent"], focusLess: [], temporaryFocus: "条码", profile: {} });
   const progress = [];

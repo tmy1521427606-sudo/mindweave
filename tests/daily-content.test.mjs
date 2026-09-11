@@ -83,6 +83,15 @@ test("rejects generated items that cite an unknown candidate", async () => {
   );
 });
 
+test("does not accept a publication date invented by the model", async () => {
+  const undated = candidates();
+  delete undated[0].publishedDate;
+  await assert.rejects(
+    generateIssueContent({ doubao: fakeDoubao(), date: "2026-09-11", candidates: undated, preferences: {}, existingItems: [] }),
+    (error) => error instanceof DailyContentError && error.code === "invalid_generated_content",
+  );
+});
+
 test("retries a failed model batch once", async () => {
   const doubao = fakeDoubao({ failFirst: true });
   const issue = await generateIssueContent({ doubao, date: "2026-09-11", candidates: candidates(10), preferences: {}, existingItems: [] });
