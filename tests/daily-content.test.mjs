@@ -208,7 +208,7 @@ test("extracts at most five known low-weight comment signals", async () => {
   assert.deepEqual(await extractCommentSignals({ doubao, comment: "", knownTopics: topics }), []);
 });
 
-test("validation rejects too few items and a topic above forty percent", () => {
+test("validation rejects incomplete diversity normally but preserves a marked time-limited issue", () => {
   const base = generated("unused", 0);
   const item = (index, topic) => ({
     ...base,
@@ -221,6 +221,8 @@ test("validation rejects too few items and a topic above forty percent", () => {
   const issue = { date: "2026-09-11", status: "tracking", generatedAt: "2026-09-11", updatedAt: "2026-09-11T01:00:00.000Z", readingMinutes: 10, summary: ["摘要"], items: Array.from({ length: 9 }, (_, index) => item(index, topics[index % 3])) };
   assert.throws(() => validateGeneratedIssue(issue), (error) => error.code === "insufficient_content");
   issue.items.push(item(9, topics[0]));
-  issue.items = issue.items.map((entry, index) => ({ ...entry, topics: [index < 5 ? topics[0] : topics[(index % 2) + 1]] }));
+  issue.items = issue.items.map((entry, index) => ({ ...entry, topics: [index < 6 ? topics[0] : topics[1]] }));
   assert.throws(() => validateGeneratedIssue(issue), (error) => error.code === "invalid_generated_content");
+  issue.generation = { status: "time_limited", targetItems: 20, failedBatches: 1 };
+  assert.doesNotThrow(() => validateGeneratedIssue(issue));
 });
