@@ -38,7 +38,7 @@
 - `publishIssueVersion` returns `{ date, version, file, versions }` after the manifest points to a fully written file.
 - Manifest entries retain `{ date, file, itemCount, status }` and optionally add `{ currentVersion, versions: [{ version, file, generatedAt, mode }] }`.
 
-- [ ] **Step 1: Write failing manifest tests**
+- [x] **Step 1: Write failing manifest tests**
 
 ```js
 test("publishes immutable versions and keeps one manifest date", async () => {
@@ -53,27 +53,27 @@ test("publishes immutable versions and keeps one manifest date", async () => {
 });
 ```
 
-- [ ] **Step 2: Run the new test and verify missing-module failure**
+- [x] **Step 2: Run the new test and verify missing-module failure**
 
 Run: `node --test tests/issue-versions.test.mjs`
 
 Expected: FAIL because `lib/issue-versions.mjs` does not exist.
 
-- [ ] **Step 3: Implement strict manifest reading and atomic writes**
+- [x] **Step 3: Implement strict manifest reading and atomic writes**
 
 Implement temp-file writes in the same `data/` directory followed by `rename()`. Validate the date with a strict ISO calendar-date check, derive `v1` from no existing versions, and update `index.json` only after the immutable issue file exists. Preserve unrelated manifest entries and sort descending by date.
 
-- [ ] **Step 4: Extend readers and data validation for version filenames**
+- [x] **Step 4: Extend readers and data validation for version filenames**
 
 Allow `YYYY-MM-DD.json` and `YYYY-MM-DD-vN.json`. When `versions` exists, require positive ascending version numbers, unique filenames, `currentVersion` equal to the active file, and each referenced file to exist. Add `version` to homepage/detail query state only when the user selects a non-current version.
 
-- [ ] **Step 5: Run focused tests**
+- [x] **Step 5: Run focused tests**
 
 Run: `node --test tests/issue-versions.test.mjs tests/app.test.mjs tests/validate-data.mjs`
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add lib/issue-versions.mjs assets/index.js assets/detail.js tests/issue-versions.test.mjs tests/app.test.mjs tests/validate-data.mjs
@@ -92,7 +92,7 @@ git commit -m "feat: support versioned daily issues"
 - A signal is `{ topic: string, weight: -1 | 1 }`; one comment accepts at most five unique known topics.
 - Decay is `weight * 0.5 ** (ageDays / 14)` and the combined returned weight for each topic is clamped to `[-2, 2]`.
 
-- [ ] **Step 1: Write failing decay and validation tests**
+- [x] **Step 1: Write failing decay and validation tests**
 
 ```js
 test("comment signals decay with a fourteen-day half-life", () => {
@@ -106,21 +106,21 @@ test("comment signals decay with a fourteen-day half-life", () => {
 
 Also assert rejection of unknown topics, duplicate topics, zero weights, more than five signals, comments over 1000 characters, and invalid timestamps.
 
-- [ ] **Step 2: Run the new test and verify failure**
+- [x] **Step 2: Run the new test and verify failure**
 
 Run: `node --test tests/daily-preferences.test.mjs`
 
 Expected: FAIL because the preference module and table do not exist.
 
-- [ ] **Step 3: Add an idempotent schema migration**
+- [x] **Step 3: Add an idempotent schema migration**
 
 Add `daily_comment_preferences(id, issue_date, comment, topic, weight, created_at)` with a check constraint for weights `-1` and `1`. Keep raw comments only in SQLite; do not add them to knowledge export or issue JSON.
 
-- [ ] **Step 4: Implement storage and deterministic decay**
+- [x] **Step 4: Implement storage and deterministic decay**
 
 Use UTC instants for age calculations, ignore future rows, round returned values to four decimal places, and cap accumulated topic weights. Keep this module independent of provider calls.
 
-- [ ] **Step 5: Run focused tests and commit**
+- [x] **Step 5: Run focused tests and commit**
 
 Run: `node --test tests/daily-preferences.test.mjs tests/database.test.mjs tests/api.test.mjs`
 
@@ -144,7 +144,7 @@ git commit -m "feat: store decaying daily commentary preferences"
 - Produces: `collectCandidates({ search, plan, onProgress })` returning normalized candidates with `{ url, title, publisher, publishedDate, excerpt, sourceType, topics, window }`.
 - Extends Tavily to `search(query, { maxResults = 5, startDate, endDate, includeRawContent = false } = {})` without changing existing callers.
 
-- [ ] **Step 1: Write failing previous-day-first tests**
+- [x] **Step 1: Write failing previous-day-first tests**
 
 ```js
 test("does not run seven-day queries when yesterday has ten reliable candidates", async () => {
@@ -160,21 +160,21 @@ test("does not run seven-day queries when yesterday has ten reliable candidates"
 
 Add tests that fewer than ten reliable candidates triggers the seven-day plan, tracking parameters deduplicate, non-HTTPS/private-host results are rejected, and a single failed query does not discard successful directions.
 
-- [ ] **Step 2: Run tests and verify failure**
+- [x] **Step 2: Run tests and verify failure**
 
 Run: `node --test tests/daily-search.test.mjs tests/providers.test.mjs`
 
 Expected: FAIL because daily search interfaces are absent.
 
-- [ ] **Step 3: Extend the Tavily client**
+- [x] **Step 3: Extend the Tavily client**
 
 Map bounded options to Tavily request fields, cap results at ten per query, request markdown raw content only for generation searches, keep the 20-second per-request timeout, and preserve sanitized provider errors.
 
-- [ ] **Step 4: Implement deterministic topic queries and candidate rules**
+- [x] **Step 4: Implement deterministic topic queries and candidate rules**
 
 Create Chinese and English query groups for the six confirmed areas. Use `Asia/Shanghai` calendar boundaries. Normalize URLs by removing tracking parameters, reject credentials, localhost, `.local`, private IPv4 ranges, and non-HTTPS schemes. Prefer official and primary-source patterns without asserting that unknown domains are official.
 
-- [ ] **Step 5: Run focused tests and commit**
+- [x] **Step 5: Run focused tests and commit**
 
 Run: `node --test tests/daily-search.test.mjs tests/providers.test.mjs`
 
@@ -196,7 +196,7 @@ git commit -m "feat: collect daily brief candidates"
 - Produces: `generateIssueContent({ doubao, date, candidates, preferences, existingItems, onProgress })`.
 - Produces: `validateGeneratedIssue(issue, { minItems = 10, maxItems = 30 })` returning a normalized immutable payload or throwing `DailyContentError` with a safe code.
 
-- [ ] **Step 1: Write failing structured-output tests**
+- [x] **Step 1: Write failing structured-output tests**
 
 ```js
 test("rejects an issue whose facts cannot resolve to supplied candidates", async () => {
@@ -210,21 +210,21 @@ test("rejects an issue whose facts cannot resolve to supplied candidates", async
 
 Add tests for 10/30 boundaries, strict dates, HTTPS sources, score totals, three-direction coverage, 40% topic cap, fact/view/inference separation, retry-once behavior, supplement deduplication, and a maximum of five extracted comment signals.
 
-- [ ] **Step 2: Run the new tests and verify failure**
+- [x] **Step 2: Run the new tests and verify failure**
 
 Run: `node --test tests/daily-content.test.mjs`
 
 Expected: FAIL because the content module does not exist.
 
-- [ ] **Step 3: Define compact JSON schemas and prompts**
+- [x] **Step 3: Define compact JSON schemas and prompts**
 
 Use one small comment-classification call only when commentary is non-empty. Generate items in batches of at most five candidates. Pass candidate IDs and require every generated item to return a candidate ID; resolve source fields from the trusted candidate object rather than accepting model-provided URLs.
 
-- [ ] **Step 4: Implement deterministic validation and composition**
+- [x] **Step 4: Implement deterministic validation and composition**
 
 Reuse the existing issue field contract. Calculate `isBackfill` from dates, calculate score totals in code, enforce topic diversity after model output, and build the four-point summary from validated item one-line values. For supplement mode, keep existing IDs and normalized source URLs before adding new items.
 
-- [ ] **Step 5: Run focused tests and commit**
+- [x] **Step 5: Run focused tests and commit**
 
 Run: `node --test tests/daily-content.test.mjs tests/validate-data.mjs`
 
@@ -247,7 +247,7 @@ git commit -m "feat: generate validated daily brief content"
 - Input is `{ mode, date, focusMore, focusLess, temporaryFocus, yesterdayComment }`.
 - Job stages are `preparing`, `searching`, `filtering`, `verifying`, `generating`, `saving`, `completed`, and `failed`.
 
-- [ ] **Step 1: Write failing orchestration tests**
+- [x] **Step 1: Write failing orchestration tests**
 
 ```js
 test("publishes only after every stage succeeds", async () => {
@@ -262,21 +262,21 @@ test("publishes only after every stage succeeds", async () => {
 
 Add tests for one active job, unknown job IDs, ten-minute hard timeout, stage counts, full versus supplement, search/model/save failure mapping, no publication on failure, and completed result call counts.
 
-- [ ] **Step 2: Run the new tests and verify failure**
+- [x] **Step 2: Run the new tests and verify failure**
 
 Run: `node --test tests/daily-generation.test.mjs`
 
 Expected: FAIL because the service does not exist.
 
-- [ ] **Step 3: Implement the minimal state machine**
+- [x] **Step 3: Implement the minimal state machine**
 
 Keep snapshots serializable and exclude raw provider bodies, prompts, comments, filesystem paths, and secrets. Generate job IDs with `randomUUID()`. Start work asynchronously without blocking the HTTP response. Reject a second start with `generation_in_progress`.
 
-- [ ] **Step 4: Connect publication and indexing**
+- [x] **Step 4: Connect publication and indexing**
 
 After content validation, publish the immutable version, then call `syncIssueDirectory`. Mark completed only after both succeed. Track elapsed milliseconds, candidate count, completed item count, search call count, and model call count.
 
-- [ ] **Step 5: Run focused tests and commit**
+- [x] **Step 5: Run focused tests and commit**
 
 Run: `node --test tests/daily-generation.test.mjs tests/database.test.mjs`
 
@@ -302,7 +302,7 @@ git commit -m "feat: orchestrate daily generation jobs"
 - Adds `POST /api/daily-generations`, `GET /api/daily-generations/:jobId`, and `GET /api/issues/:date/versions`.
 - Health adds booleans `dailyGenerationConfigured` and `webSearchConfigured` without exposing values.
 
-- [ ] **Step 1: Write failing API contract tests**
+- [x] **Step 1: Write failing API contract tests**
 
 ```js
 test("starts and polls a daily generation", async () => {
@@ -318,21 +318,21 @@ test("starts and polls a daily generation", async () => {
 
 Add tests for missing configuration, malformed bodies, length limits, overlapping topics, invalid modes/dates, unknown jobs, safe errors, and secret-free health output.
 
-- [ ] **Step 2: Run focused tests and verify failure**
+- [x] **Step 2: Run focused tests and verify failure**
 
 Run: `node --test tests/api.test.mjs tests/agent-config.test.mjs tests/start.test.mjs`
 
 Expected: FAIL for missing routes and configuration.
 
-- [ ] **Step 3: Add routes and dependency wiring**
+- [x] **Step 3: Add routes and dependency wiring**
 
 Build the daily service only when all three required environment settings exist. Share the existing Doubao and Tavily clients. Return `503 provider_unavailable` when generation is unconfigured and `409 generation_in_progress` for a concurrent job.
 
-- [ ] **Step 4: Update startup status without leaking values**
+- [x] **Step 4: Update startup status without leaking values**
 
 Have `start.ps1` print `日报生成：已配置` only when all required variables exist; otherwise print `日报生成：未配置`. Preserve hidden Node helper behavior.
 
-- [ ] **Step 5: Run focused tests and commit**
+- [x] **Step 5: Run focused tests and commit**
 
 Run: `node --test tests/api.test.mjs tests/agent-config.test.mjs tests/start.test.mjs`
 
@@ -357,25 +357,25 @@ git commit -m "feat: expose daily generation API"
 - It owns form state, POST creation, two-second polling, progress rendering, cost warning, and version controls.
 - `onCompleted({ date, version })` asks the existing homepage controller to reload the manifest and selected issue.
 
-- [ ] **Step 1: Write failing DOM behavior tests**
+- [x] **Step 1: Write failing DOM behavior tests**
 
 Test that empty optional inputs submit, more/less choices are mutually exclusive, double click sends one POST, progress text updates through stages, provider-unavailable guidance appears, completion reloads the new version, and regenerate/supplement require the cost confirmation.
 
-- [ ] **Step 2: Run the UI tests and verify failure**
+- [x] **Step 2: Run the UI tests and verify failure**
 
 Run: `node --test tests/app.test.mjs`
 
 Expected: FAIL because the generation console does not exist.
 
-- [ ] **Step 3: Add accessible generation markup and styles**
+- [x] **Step 3: Add accessible generation markup and styles**
 
 Place the console before issue navigation. Use a labelled form, fieldsets for topic choices, character counters, a native progress element plus live text, and a status region with `aria-live="polite"`. Keep the existing visual system and responsive breakpoints.
 
-- [ ] **Step 4: Implement form, polling, and version controls**
+- [x] **Step 4: Implement form, polling, and version controls**
 
 Do not call generation APIs during page load except read-only health/version status. Stop polling on a terminal state. Render all provider-derived strings with `textContent`. Show the five confirmed stage labels, elapsed time, counts, and configuration help.
 
-- [ ] **Step 5: Run focused UI tests and commit**
+- [x] **Step 5: Run focused UI tests and commit**
 
 Run: `node --test tests/app.test.mjs`
 
@@ -396,33 +396,33 @@ git commit -m "feat: add daily generation console"
 **Interfaces:**
 - Documents the required provider settings, manual trigger, 3–8 minute expectation, local version files, no automatic Git push, and fake-provider test policy.
 
-- [ ] **Step 1: Run the complete automated suite**
+- [x] **Step 1: Run the complete automated suite**
 
 Run: `node --test`
 
 Expected: all existing and new tests PASS with zero real provider requests.
 
-- [ ] **Step 2: Run data validation directly**
+- [x] **Step 2: Run data validation directly**
 
 Run: `node tests/validate-data.mjs`
 
 Expected: prints the validated issue and unique item counts without an assertion failure.
 
-- [ ] **Step 3: Start with providers intentionally unconfigured**
+- [x] **Step 3: Start with providers intentionally unconfigured**
 
 Run in a clean PowerShell process with the three provider variables empty: `powershell -NoProfile -ExecutionPolicy Bypass -File .\start.ps1`.
 
 Expected: the site opens, existing issues remain readable, and the generation console explains that generation is unconfigured without showing any environment value.
 
-- [ ] **Step 4: Update user documentation**
+- [x] **Step 4: Update user documentation**
 
 Document how to configure providers, create a full or supplement version, stop the server, find generated files, and manually push selected versions to GitHub. State clearly that opening the site is free and that only clicking generation invokes paid providers.
 
-- [ ] **Step 5: Mark completed plan checkboxes and inspect the final diff**
+- [x] **Step 5: Mark completed plan checkboxes and inspect the final diff**
 
 Run: `git status --short` and `git diff --check HEAD~1..HEAD` for the last commit, then inspect `git log --oneline` for the feature commits. Do not include SQLite files, `.env`, or secrets.
 
-- [ ] **Step 6: Commit documentation**
+- [x] **Step 6: Commit documentation**
 
 ```powershell
 git add README.md docs/local-agent-setup.md docs/superpowers/plans/2026-09-11-on-demand-daily-generation.md
