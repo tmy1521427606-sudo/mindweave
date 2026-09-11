@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -71,4 +71,13 @@ test("rejects invalid dates and publication modes before writing", async () => {
     /invalid publication mode/,
   );
   assert.deepEqual((await readIssueManifest(dataDir)).issues, []);
+});
+
+test("cleans up a temporary file when an atomic rename fails", async () => {
+  const dataDir = await temporaryDataDir();
+  await mkdir(path.join(dataDir, "2026-09-11-v1.json"));
+  await assert.rejects(
+    publishIssueVersion({ dataDir, issue: issue("2026-09-11", ["a"]), mode: "full" }),
+  );
+  assert.equal((await readdir(dataDir)).some((file) => file.endsWith(".tmp")), false);
 });
