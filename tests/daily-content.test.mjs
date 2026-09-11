@@ -76,6 +76,24 @@ test("generates a validated 10-30 item issue and resolves trusted sources", asyn
   assert.equal(issue.summary.length, 4);
 });
 
+test("limits detailed generation requests to two items so slow models can finish each batch", async () => {
+  const batchSizes = [];
+  const doubao = { async chat(request) {
+    const body = JSON.parse(request.messages.at(-1).content);
+    batchSizes.push(body.untrustedCandidates.length);
+    return {
+      items: body.untrustedCandidates.map((candidate) => generated(candidate.id, candidate.sequence)),
+    };
+  } };
+
+  const issue = await generateIssueContent({
+    doubao, date: "2026-09-11", candidates: candidates(10), preferences: {}, existingItems: [],
+  });
+
+  assert.equal(issue.items.length, 10);
+  assert.deepEqual(batchSizes, [2, 2, 2, 2, 2]);
+});
+
 test("rejects generated items that cite an unknown candidate", async () => {
   await assert.rejects(
     generateIssueContent({ doubao: fakeDoubao({ invalidSource: true }), date: "2026-09-11", candidates: candidates(), preferences: {}, existingItems: [] }),
@@ -115,7 +133,7 @@ test("retries a failed model batch once", async () => {
   const doubao = fakeDoubao({ failFirst: true });
   const issue = await generateIssueContent({ doubao, date: "2026-09-11", candidates: candidates(10), preferences: {}, existingItems: [] });
   assert.equal(issue.items.length, 10);
-  assert.equal(doubao.calls, 3);
+  assert.equal(doubao.calls, 6);
 });
 
 test("supplement mode keeps existing items and deduplicates their source URLs", async () => {
