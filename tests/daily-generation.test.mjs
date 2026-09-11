@@ -114,6 +114,51 @@ test("publishes and indexes only after every generation stage succeeds", async (
   assert.equal((await readIssueManifest(context.dataDir)).issues[0].date, "2026-09-11");
 });
 
+test("wires the latest issue date and historical sources into candidate collection", async () => {
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), "mindweave-catch-up-"));
+  const previousFile = "2026-09-07.json";
+  const historicalUrl = "https://official.example.com/already-covered";
+  await writeFile(path.join(dataDir, "index.json"), JSON.stringify({ issues: [
+    { date: "2026-09-07", file: previousFile, itemCount: 1, status: "final" },
+  ] }));
+  await writeFile(path.join(dataDir, previousFile), JSON.stringify({
+    date: "2026-09-07",
+    items: [{ source: { url: `${historicalUrl}?utm_source=old` } }],
+  }));
+  const db = openDatabase(":memory:");
+  initializeSchema(db);
+  const searchCalls = [];
+  const modelUrls = [];
+  let call = 0;
+  const service = createDailyGenerationService({
+    db,
+    dataDir,
+    clock: () => new Date("2026-09-11T01:00:00.000Z"),
+    syncIssues: async () => {},
+    search: async (_query, options) => {
+      call += 1;
+      searchCalls.push(options);
+      return [
+        { title: "Covered", url: historicalUrl, content: "Previously covered source.", published_date: "2026-09-08" },
+        { title: `New ${call}-1`, url: `https://new-${call}-1.example.com/release`, content: "New source details.", published_date: "2026-09-08" },
+        { title: `New ${call}-2`, url: `https://new-${call}-2.example.com/release`, content: "New source details.", published_date: "2026-09-10" },
+      ];
+    },
+    doubao: { chat: async (request) => {
+      const body = JSON.parse(request.messages.at(-1).content);
+      for (const candidate of body.untrustedCandidates) modelUrls.push(candidate.url);
+      return { items: body.untrustedCandidates.map((candidate) => generatedItem(candidate)) };
+    } },
+  });
+
+  const final = await terminal(service, service.start(input()).jobId);
+
+  assert.equal(final.stage, "completed");
+  assert.ok(searchCalls.every((options) => options.startDate === "2026-09-08" && options.endDate === "2026-09-10"));
+  assert.ok(modelUrls.every((url) => url !== historicalUrl));
+  assert.ok(final.discarded.duplicate > 0);
+});
+
 test("rejects a concurrent job while one is active", async () => {
   const context = await fixture();
   let release;

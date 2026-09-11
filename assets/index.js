@@ -12,12 +12,14 @@ import {
   loadJson,
   legacySignalEntries,
   itemTimingLabel,
+  issueDateLabel,
   migrateLegacySignals,
   normalizeViewState,
   personalizedScore,
   readStoredJson,
   resolveViewState,
   sortItems,
+  shanghaiDate,
   SORTS,
   STORAGE_KEYS,
   toggleInterestSignal,
@@ -422,7 +424,7 @@ function persistView() {
 }
 
 function renderSummary(issue) {
-  elements["summary-heading"].textContent = issue.status === "tracking"
+  elements["summary-heading"].textContent = displayIssueStatus(issue) === "tracking"
     ? "今日 4 点摘要"
     : "本期 4 点摘要";
   setChildren(
@@ -636,7 +638,7 @@ function makeNewsCard(item, index) {
   badgeRow.className = "chip-row";
   badgeRow.append(
     makeChip(
-      itemTimingLabel(item, app.issue.status),
+      itemTimingLabel(item, displayIssueStatus(app.issue)),
       item.isBackfill ? "chip-backfill" : "chip-yesterday",
     ),
     makeChip(item.contentType === "learning" ? "技术学习" : "新闻事件", "chip-kind"),
@@ -721,8 +723,9 @@ function renderIssueMeta(issue) {
   const currentCount = issue.items.filter((item) => !item.isBackfill).length;
   const backfillCount = issue.items.length - currentCount;
   const learningCount = issue.items.filter((item) => item.contentType === "learning").length;
-  const tracking = issue.status === "tracking";
-  elements["issue-date-label"].textContent = `${tracking ? "今日追踪 · 进行中" : "日报定稿"} · ${formatDate(issue.date)}`;
+  const tracking = displayIssueStatus(issue) === "tracking";
+  const latestDate = app.manifest.issues[0]?.date;
+  elements["issue-date-label"].textContent = `${issueDateLabel(issue, { todayDate: shanghaiDate(), latestDate })} · ${formatDate(issue.date)}`;
   elements["issue-counts"].textContent = `${issue.items.length} 条 · ${tracking ? "今日新增" : "当日"} ${currentCount} · ${tracking ? "热点跟进" : "回溯"} ${backfillCount} · 技术学习 ${learningCount}`;
   elements["issue-reading"].textContent = `约 ${issue.readingMinutes} 分钟`;
   elements["issue-generated"].textContent = tracking && issue.updatedAt
@@ -753,7 +756,7 @@ function populateDates() {
 }
 
 function renderIssueNavigation() {
-  const navigation = buildIssueNavigation(app.manifest.issues);
+  const navigation = buildIssueNavigation(app.manifest.issues, shanghaiDate());
   const setShortcut = (element, issue, label) => {
     element.hidden = !issue;
     if (!issue) return;
@@ -762,8 +765,8 @@ function renderIssueNavigation() {
     if (issue.date === app.view?.date) element.setAttribute("aria-current", "page");
     else element.removeAttribute("aria-current");
   };
-  setShortcut(elements["today-link"], navigation.today, "今天");
-  setShortcut(elements["yesterday-link"], navigation.yesterday, "昨天");
+  setShortcut(elements["today-link"], navigation.today ?? navigation.latest, navigation.today ? "今天" : "最近一期");
+  setShortcut(elements["yesterday-link"], navigation.previous, "上一期");
   setChildren(
     elements["archive-links"],
     navigation.archive.map((issue) => {
@@ -774,6 +777,10 @@ function renderIssueNavigation() {
     }),
   );
   elements["archive-links"].prepend(textElement("span", "archive-label", "往期"));
+}
+
+function displayIssueStatus(issue) {
+  return issue?.date === shanghaiDate() ? issue.status : "final";
 }
 
 async function loadIssue(date) {

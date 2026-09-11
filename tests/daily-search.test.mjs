@@ -28,6 +28,26 @@ test("searches the previous Shanghai calendar day without expanding when enough 
   assert.equal(calls.length, plan.yesterday.queries.length);
 });
 
+test("starts catch-up coverage the day after the latest previous issue", () => {
+  const plan = buildSearchPlan({
+    date: "2026-09-11", lastIssueDate: "2026-09-07", focusMore: [], focusLess: [], temporaryFocus: "", profile: {},
+  });
+  assert.deepEqual(
+    { startDate: plan.yesterday.startDate, endDate: plan.yesterday.endDate },
+    { startDate: "2026-09-08", endDate: "2026-09-10" },
+  );
+});
+
+test("limits catch-up coverage to the latest seven days", () => {
+  const plan = buildSearchPlan({
+    date: "2026-09-11", lastIssueDate: "2026-08-20", focusMore: [], focusLess: [], temporaryFocus: "", profile: {},
+  });
+  assert.deepEqual(
+    { startDate: plan.yesterday.startDate, endDate: plan.yesterday.endDate },
+    { startDate: "2026-09-04", endDate: "2026-09-10" },
+  );
+});
+
 test("expands to seven days only when yesterday has fewer than ten candidates", async () => {
   const calls = [];
   const plan = buildSearchPlan({ date: "2026-09-11", focusMore: [], focusLess: [], temporaryFocus: "", profile: {} });
@@ -56,6 +76,23 @@ test("deduplicates tracking URLs and rejects unsafe result hosts", async () => {
   });
   assert.equal(candidates.filter((entry) => entry.url === "https://openai.com/news/a").length, 1);
   assert.ok(candidates.every((entry) => !/127\.0\.0\.1|10\.0\.0\.8/.test(entry.url)));
+});
+
+test("excludes normalized source URLs that appeared in earlier issues", async () => {
+  const plan = buildSearchPlan({ date: "2026-09-11", focusMore: [], focusLess: [], temporaryFocus: "", profile: {} });
+  const progress = [];
+  const candidates = await collectCandidates({
+    search: async () => [
+      { title: "Already covered", url: "https://openai.com/news/a?utm_source=again", content: "old source", published_date: "2026-09-10" },
+      { title: "New follow-up", url: "https://openai.com/news/a-follow-up", content: "new source", published_date: "2026-09-10" },
+    ],
+    plan,
+    excludedUrls: ["https://openai.com/news/a?ref=history"],
+    onProgress: (value) => progress.push(value),
+  });
+  assert.ok(candidates.every((candidate) => candidate.url !== "https://openai.com/news/a"));
+  assert.ok(candidates.some((candidate) => candidate.url === "https://openai.com/news/a-follow-up"));
+  assert.ok(progress.at(-1).discarded.duplicate > 0);
 });
 
 test("rejects candidates without a trustworthy publication date", async () => {

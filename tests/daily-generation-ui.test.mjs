@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { generationCounts, generationPayload, generationStage, versionFileForEntry } from "../assets/daily-generation.js";
+import { generationCounts, generationPayload, generationStage, generationTargetLabel, versionFileForEntry } from "../assets/daily-generation.js";
 
 test("empty optional morning inputs create a valid full payload", () => {
   assert.deepEqual(generationPayload({ mode: "full", date: "2026-09-11", focusMore: [], focusLess: [], temporaryFocus: "  ", yesterdayComment: "  " }), {
@@ -12,6 +12,10 @@ test("empty optional morning inputs create a valid full payload", () => {
 test("generation stages expose stable progress labels", () => {
   assert.deepEqual(generationStage("searching"), ["正在联网搜索", 2]);
   assert.deepEqual(generationStage("completed"), ["日报生成完成", 6]);
+});
+
+test("generation console names the actual target date", () => {
+  assert.equal(generationTargetLabel("2026-09-11"), "将生成 2026年9月11日日报");
 });
 
 test("generation progress explains why search results were discarded", () => {
@@ -37,5 +41,6 @@ test("homepage contains the accessible morning generation console", async () => 
   assert.match(html, /<summary>今日偏好（可选）<\/summary>/);
   assert.match(html, /id="generation-yesterday-comment"[^>]*maxlength="1000"/);
   assert.match(html, /id="generation-progress"/);
+  assert.match(html, /id="generation-target-date"/);
   assert.match(html, /role="status" aria-live="polite"/);
 });

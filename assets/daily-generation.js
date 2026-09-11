@@ -28,6 +28,11 @@ export function generationPayload({ mode, date, focusMore, focusLess, temporaryF
   return { mode, date, focusMore: [...new Set(focusMore)], focusLess: [...new Set(focusLess)], temporaryFocus: temporaryFocus.trim(), yesterdayComment: yesterdayComment.trim() };
 }
 
+export function generationTargetLabel(date) {
+  const [year, month, day] = date.split("-").map(Number);
+  return `将生成 ${year}年${month}月${day}日日报`;
+}
+
 export function versionFileForEntry(issueRef, version) {
   if (!issueRef || !Number.isInteger(version) || version < 1) return issueRef?.file ?? null;
   return issueRef.versions?.find((entry) => entry.version === version)?.file ?? issueRef.file;
@@ -45,7 +50,10 @@ export async function initializeDailyGeneration({
     "generation-focus-count", "generation-comment-count", "generation-submit", "generation-supplement", "generation-status",
     "generation-progress", "generation-progress-bar", "generation-stage", "generation-counts",
     "generation-version-controls", "generation-version",
+    "generation-target-date",
   ].map((id) => [id, document.getElementById(id)]));
+
+  elements["generation-target-date"].textContent = generationTargetLabel(today);
 
   renderTopicChoices(elements["generation-more-topics"], "daily-more");
   renderTopicChoices(elements["generation-less-topics"], "daily-less");
