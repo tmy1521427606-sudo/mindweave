@@ -242,6 +242,37 @@ test("provider timeouts retain a sanitized timeout code for API mapping", async 
   await assert.rejects(() => client.chat({ messages: [] }), (error) => error.code === "provider_timeout" && !error.message.includes("secret-token"));
 });
 
+test("Doubao chat allows slow generation without extending other provider requests", async () => {
+  const timeoutCalls = [];
+  const originalTimeout = AbortSignal.timeout;
+  AbortSignal.timeout = (milliseconds) => {
+    timeoutCalls.push(milliseconds);
+    return originalTimeout(milliseconds);
+  };
+  try {
+    const doubao = createDoubaoClient({
+      apiKey: "fake",
+      chatModel: "glm-5-3-flash-260828",
+      embeddingModel: "fake-embedding",
+      fetchImpl: async (url) => url.endsWith("/embeddings")
+        ? jsonResponse({ data: [{ embedding: [1] }] })
+        : jsonResponse({ choices: [{ message: { content: '{"items":[]}' } }] }),
+    });
+    const tavily = createTavilyClient({
+      apiKey: "fake",
+      fetchImpl: async () => jsonResponse({ results: [] }),
+    });
+
+    await doubao.chat({ messages: [] });
+    await doubao.embed(["test"]);
+    await tavily.search("test");
+
+    assert.deepEqual(timeoutCalls, [90_000, 20_000, 20_000]);
+  } finally {
+    AbortSignal.timeout = originalTimeout;
+  }
+});
+
 for (const provider of ["Doubao", "Tavily"]) {
   for (const name of ["AbortError", "TimeoutError"]) {
     test(`${provider} preserves ${name} from response body reading as provider_timeout`, async () => {
