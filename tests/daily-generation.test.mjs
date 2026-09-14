@@ -101,17 +101,101 @@ async function terminal(service, jobId) {
   throw new Error("job did not finish");
 }
 
+async function waitFor(check, message = "condition was not met") {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    const value = await check();
+    if (value) return value;
+    await new Promise((resolve) => setTimeout(resolve, 2));
+  }
+  throw new Error(message);
+}
+
+test("publishes five valid items immediately while generation continues, then publishes the expanded version", async () => {
+  let modelCall = 0;
+  let releaseBackground;
+  const background = new Promise((resolve) => { releaseBackground = resolve; });
+  const context = await fixture({
+    doubaoOverride: { async chat(request) {
+      modelCall += 1;
+      if (modelCall > 3) await background;
+      const body = JSON.parse(request.messages.at(-1).content);
+      return { items: body.untrustedCandidates.map((candidate) => generatedItem(candidate)) };
+    } },
+  });
+
+  const { jobId } = context.service.start(input());
+  const initial = await waitFor(() => context.service.get(jobId)?.initialResult && context.service.get(jobId));
+  const initialManifest = await readIssueManifest(context.dataDir);
+  const initialIssue = JSON.parse(await readFile(path.join(context.dataDir, initialManifest.issues[0].file), "utf8"));
+
+  assert.equal(initial.stage, "generating");
+  assert.equal(initial.backgroundGenerating, true);
+  assert.equal(initial.initialResult.version, 1);
+  assert.equal(initialIssue.items.length, 5);
+
+  releaseBackground();
+  const final = await terminal(context.service, jobId);
+  const finalManifest = await readIssueManifest(context.dataDir);
+  assert.equal(final.stage, "completed");
+  assert.equal(final.result.version, 2);
+  assert.equal(finalManifest.issues[0].versions.length, 2);
+  assert.ok(final.completedItems > 5);
+});
+
+test("publishes a second version when one valid item is added before later model batches fail", async () => {
+  let modelCall = 0;
+  const context = await fixture({
+    doubaoOverride: { async chat(request) {
+      modelCall += 1;
+      const body = JSON.parse(request.messages.at(-1).content);
+      if (modelCall > 3) throw Object.assign(new Error("later batch failed"), { code: "provider_timeout" });
+      return { items: body.untrustedCandidates.map((candidate) => generatedItem(candidate)) };
+    } },
+  });
+
+  const { jobId } = context.service.start(input());
+  const final = await terminal(context.service, jobId);
+  const manifest = await readIssueManifest(context.dataDir);
+
+  assert.equal(final.stage, "completed");
+  assert.equal(final.result.version, 2);
+  assert.equal(manifest.issues[0].versions.length, 2);
+  const issue = JSON.parse(await readFile(path.join(context.dataDir, manifest.issues[0].file), "utf8"));
+  assert.equal(issue.items.length, 6);
+});
+
+test("does not publish a duplicate second version when background work adds no valid items", async () => {
+  let modelCall = 0;
+  const context = await fixture({
+    doubaoOverride: { async chat(request) {
+      modelCall += 1;
+      const body = JSON.parse(request.messages.at(-1).content);
+      if (modelCall > 3) throw Object.assign(new Error("later batch failed"), { code: "provider_timeout" });
+      const items = body.untrustedCandidates.map((candidate) => generatedItem(candidate));
+      if (modelCall === 3) items[1].fact = "";
+      return { items };
+    } },
+  });
+
+  const final = await terminal(context.service, context.service.start(input()).jobId);
+  const manifest = await readIssueManifest(context.dataDir);
+
+  assert.equal(final.stage, "completed");
+  assert.equal(final.result.version, 1);
+  assert.equal(manifest.issues[0].versions.length, 1);
+});
+
 test("publishes and indexes only after every generation stage succeeds", async () => {
   const context = await fixture();
   const { jobId } = context.service.start(input());
   const final = await terminal(context.service, jobId);
   assert.equal(final.stage, "completed");
-  assert.equal(final.result.version, 1);
+  assert.equal(final.result.version, 2);
   assert.equal(final.completedItems, 16);
   assert.ok(final.searchCalls >= 6);
   assert.ok(final.modelCalls >= 3);
   assert.deepEqual(final.discarded, { missingDate: 0, outsideWindow: 0, duplicate: 0, invalid: 0 });
-  assert.equal(context.syncCalls, 1);
+  assert.equal(context.syncCalls, 2);
   assert.equal((await readIssueManifest(context.dataDir)).issues[0].date, "2026-09-11");
 });
 
@@ -343,11 +427,11 @@ test("hard timeout publishes at least ten completed items instead of discarding 
 test("full and supplement create immutable successive versions", async () => {
   const context = await fixture();
   const first = context.service.start(input());
-  assert.equal((await terminal(context.service, first.jobId)).result.version, 1);
+  assert.equal((await terminal(context.service, first.jobId)).result.version, 2);
   const second = context.service.start(input({ mode: "supplement" }));
-  assert.equal((await terminal(context.service, second.jobId)).result.version, 2);
+  assert.equal((await terminal(context.service, second.jobId)).result.version, 3);
   const manifest = JSON.parse(await readFile(path.join(context.dataDir, "index.json"), "utf8"));
-  assert.equal(manifest.issues[0].versions.length, 2);
+  assert.equal(manifest.issues[0].versions.length, 3);
 });
 
 test("validates start input and returns null for unknown jobs", async () => {

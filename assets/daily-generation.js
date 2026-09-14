@@ -41,6 +41,20 @@ export function generationTargetLabel(date) {
   return `将生成 ${year}年${month}月${day}日日报`;
 }
 
+export function generationNextAction(job, viewedVersion) {
+  if (job.stage === "completed" && Number.isInteger(job.result?.version)) {
+    return job.result.version === viewedVersion
+      ? { kind: "complete" }
+      : { kind: "open", date: job.date, version: job.result.version, background: false };
+  }
+  if (job.initialResult?.version && job.backgroundGenerating) {
+    return job.initialResult.version === viewedVersion
+      ? { kind: "wait" }
+      : { kind: "open", date: job.date, version: job.initialResult.version, background: true };
+  }
+  return { kind: "wait" };
+}
+
 export function versionFileForEntry(issueRef, version) {
   if (!issueRef || !Number.isInteger(version) || version < 1) return issueRef?.file ?? null;
   return issueRef.versions?.find((entry) => entry.version === version)?.file ?? issueRef.file;
@@ -49,7 +63,10 @@ export function versionFileForEntry(issueRef, version) {
 export async function initializeDailyGeneration({
   request = apiJson,
   today = shanghaiDate(),
-  onCompleted = ({ date, version }) => { location.assign(`index.html?date=${encodeURIComponent(date)}&version=${version}`); },
+  onCompleted = ({ date, version, jobId, background }) => {
+    const job = background && jobId ? `&generationJob=${encodeURIComponent(jobId)}` : "";
+    location.assign(`index.html?date=${encodeURIComponent(date)}&version=${version}${job}`);
+  },
 } = {}) {
   const form = document.getElementById("generation-form");
   if (!form) return;
@@ -62,6 +79,9 @@ export async function initializeDailyGeneration({
   ].map((id) => [id, document.getElementById(id)]));
 
   elements["generation-target-date"].textContent = generationTargetLabel(today);
+  const query = new URLSearchParams(location.search);
+  const resumedJobId = query.get("generationJob");
+  const viewedVersion = Number(query.get("version")) || null;
 
   renderTopicChoices(elements["generation-more-topics"], "daily-more");
   renderTopicChoices(elements["generation-less-topics"], "daily-less");
@@ -89,6 +109,13 @@ export async function initializeDailyGeneration({
     elements["generation-status"].textContent = "无法读取生成配置，现有日报仍可正常阅读。";
   }
 
+  if (resumedJobId) {
+    pollJob(resumedJobId, viewedVersion).catch(() => {
+      elements["generation-status"].textContent = "后台任务已结束或本地服务已重启；已发布的日报仍可正常阅读。";
+      setFormDisabled(form, false);
+    });
+  }
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (elements["generation-submit"].disabled) return;
@@ -107,14 +134,14 @@ export async function initializeDailyGeneration({
       const { jobId } = await request("/api/daily-generations", {
         method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
       });
-      await pollJob(jobId);
+      await pollJob(jobId, null);
     } catch (error) {
       elements["generation-status"].textContent = error.message || "日报生成失败，请稍后重试。";
       setFormDisabled(form, false);
     }
   });
 
-  async function pollJob(jobId) {
+  async function pollJob(jobId, currentVersion) {
     while (true) {
       const job = await request(`/api/daily-generations/${encodeURIComponent(jobId)}`);
       const [label, progress] = generationStage(job.stage);
@@ -124,7 +151,21 @@ export async function initializeDailyGeneration({
       elements["generation-status"].textContent = job.stage === "failed"
         ? job.error?.message ?? "日报生成失败，请稍后重试。"
         : `${label}，已用时 ${formatElapsed(job.elapsedMs)}。`;
-      if (job.stage === "completed") { onCompleted({ date: job.date, version: job.result.version }); return; }
+      const action = generationNextAction(job, currentVersion);
+      if (action.kind === "open") {
+        onCompleted({ ...action, jobId });
+        return;
+      }
+      if (job.initialResult && job.backgroundGenerating) {
+        elements["generation-status"].textContent = "首批 5 条已发布，后台继续补充。保持本地服务运行即可。";
+      }
+      if (action.kind === "complete") {
+        elements["generation-status"].textContent = job.backgroundError
+          ? "后台补充未完成，首批 5 条已安全保留。"
+          : "后台补充完成，当前已是最新版。";
+        setFormDisabled(form, false);
+        return;
+      }
       if (job.stage === "failed") { setFormDisabled(form, false); return; }
       await new Promise((resolve) => setTimeout(resolve, 2000));
     }

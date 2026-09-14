@@ -142,20 +142,47 @@ test("skips a batch that fails twice and continues generating enough reliable it
   assert.equal(progress.at(-1).failedBatches, 1);
 });
 
-test("rejects generated items that cite an unknown candidate", async () => {
-  await assert.rejects(
-    generateIssueContent({ doubao: fakeDoubao({ invalidSource: true }), date: "2026-09-11", candidates: candidates(), preferences: {}, existingItems: [] }),
-    (error) => error instanceof DailyContentError && error.code === "invalid_generated_content",
-  );
+test("counts only individually valid items and keeps invalid items out of progress snapshots", async () => {
+  const progress = [];
+  let firstBatch = true;
+  const doubao = { async chat(request) {
+    const body = JSON.parse(request.messages.at(-1).content);
+    const items = body.untrustedCandidates.map((candidate) => generated(candidate.id, candidate.sequence));
+    if (firstBatch) {
+      items[0].fact = "";
+      firstBatch = false;
+    }
+    return { items };
+  } };
+
+  const issue = await generateIssueContent({
+    doubao,
+    date: "2026-09-11",
+    candidates: candidates(12),
+    preferences: {},
+    existingItems: [],
+    onProgress: (value) => progress.push(value),
+  });
+
+  assert.equal(issue.items.length, 11);
+  assert.equal(progress.at(-1).completedItems, 11);
+  assert.ok(progress.some((entry) => entry.initialIssue?.items.length === 5));
+  assert.ok(progress.every((entry) => entry.initialIssue?.items.every((item) => item.fact) ?? true));
 });
 
-test("does not accept a publication date invented by the model", async () => {
+test("skips a generated item that cites an unknown candidate", async () => {
+  const issue = await generateIssueContent({
+    doubao: fakeDoubao({ invalidSource: true }), date: "2026-09-11", candidates: candidates(), preferences: {}, existingItems: [],
+  });
+  assert.equal(issue.items.length, 11);
+});
+
+test("does not keep an item when its trusted candidate has no verified publication date", async () => {
   const undated = candidates();
   delete undated[0].publishedDate;
-  await assert.rejects(
-    generateIssueContent({ doubao: fakeDoubao(), date: "2026-09-11", candidates: undated, preferences: {}, existingItems: [] }),
-    (error) => error instanceof DailyContentError && error.code === "invalid_generated_content",
-  );
+  const issue = await generateIssueContent({ doubao: fakeDoubao(), date: "2026-09-11", candidates: undated, preferences: {}, existingItems: [] });
+  assert.equal(issue.items.length, 11);
+  assert.ok(issue.items.every((item) => item.source.url !== undated[0].url));
 });
 
 test("forces an undated technical candidate into a visibly unverified learning item", async () => {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { generationCounts, generationPayload, generationStage, generationTargetLabel, versionFileForEntry } from "../assets/daily-generation.js";
+import { generationCounts, generationNextAction, generationPayload, generationStage, generationTargetLabel, versionFileForEntry } from "../assets/daily-generation.js";
 
 test("empty optional morning inputs create a valid full payload", () => {
   assert.deepEqual(generationPayload({ mode: "full", date: "2026-09-11", focusMore: [], focusLess: [], temporaryFocus: "  ", yesterdayComment: "  " }), {
@@ -47,6 +47,26 @@ test("generation progress reports skipped model batches", () => {
     failedBatches: 2,
     result: { partial: true, reason: "partial_failures", failedBatches: 2 },
   }), /跳过失败批次 2 个，已保留 18 条/);
+});
+
+test("opens the first published version without treating background generation as complete", () => {
+  assert.deepEqual(generationNextAction({
+    stage: "generating",
+    date: "2026-09-11",
+    initialResult: { version: 1 },
+    backgroundGenerating: true,
+  }, null), { kind: "open", date: "2026-09-11", version: 1, background: true });
+  assert.deepEqual(generationNextAction({
+    stage: "generating",
+    date: "2026-09-11",
+    initialResult: { version: 1 },
+    backgroundGenerating: true,
+  }, 1), { kind: "wait" });
+  assert.deepEqual(generationNextAction({
+    stage: "completed",
+    date: "2026-09-11",
+    result: { version: 2 },
+  }, 1), { kind: "open", date: "2026-09-11", version: 2, background: false });
 });
 
 test("version file selection falls back to the active issue", () => {
