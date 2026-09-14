@@ -49,6 +49,16 @@ test("generation progress reports skipped model batches", () => {
   }), /跳过失败批次 2 个，已保留 18 条/);
 });
 
+test("generation progress exposes safe model validation rejection counts", () => {
+  assert.match(generationCounts({
+    candidates: 47,
+    completedItems: 5,
+    searchCalls: 8,
+    modelCalls: 4,
+    invalidItems: { requiredText: 3, invalidEnum: 2, invalidStructure: 1 },
+  }), /模型格式问题：缺必要文字 3、枚举无效 2、结构无效 1/);
+});
+
 test("opens the first published version without treating background generation as complete", () => {
   assert.deepEqual(generationNextAction({
     stage: "generating",

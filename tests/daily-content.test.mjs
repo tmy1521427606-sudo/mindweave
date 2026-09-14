@@ -94,6 +94,56 @@ test("limits detailed generation requests to two items so slow models can finish
   assert.deepEqual(batchSizes, [2, 2, 2, 2, 2]);
 });
 
+test("sends a complete per-item contract to prompt-schema models", async () => {
+  let responseSchema;
+  const doubao = { async chat(request) {
+    responseSchema ??= request.responseSchema;
+    const body = JSON.parse(request.messages.at(-1).content);
+    return { items: body.untrustedCandidates.map((candidate) => generated(candidate.id, candidate.sequence)) };
+  } };
+
+  await generateIssueContent({
+    doubao, date: "2026-09-11", candidates: candidates(10), preferences: {}, existingItems: [],
+  });
+
+  const item = responseSchema.schema.properties.items.items;
+  assert.ok(item.required.includes("candidateId"));
+  assert.ok(item.required.includes("fact"));
+  assert.ok(item.required.includes("development"));
+  assert.ok(item.required.includes("score"));
+  assert.deepEqual(item.properties.region.enum, ["国内", "海外", "全球"]);
+  assert.deepEqual(item.properties.priority.enum, ["必读", "关注", "扩展"]);
+});
+
+test("repairs a malformed model batch once and reports its safe rejection reason", async () => {
+  const attempts = new Map();
+  const progress = [];
+  let calls = 0;
+  const doubao = { async chat(request) {
+    calls += 1;
+    const body = JSON.parse(request.messages.at(-1).content);
+    const key = body.untrustedCandidates.map((candidate) => candidate.id).join(",");
+    const attempt = (attempts.get(key) ?? 0) + 1;
+    attempts.set(key, attempt);
+    const items = body.untrustedCandidates.map((candidate) => generated(candidate.id, candidate.sequence));
+    if (key.startsWith("candidate-1,") && attempt === 1) items[0].fact = "";
+    return { items };
+  } };
+
+  const issue = await generateIssueContent({
+    doubao,
+    date: "2026-09-11",
+    candidates: candidates(10),
+    preferences: {},
+    existingItems: [],
+    onProgress: (value) => progress.push(value),
+  });
+
+  assert.equal(issue.items.length, 10);
+  assert.equal(calls, 6);
+  assert.equal(progress.at(-1).invalidItems.requiredText, 1);
+});
+
 test("runs two detailed generation batches concurrently while preserving item order", async () => {
   let active = 0;
   let maximumActive = 0;
@@ -164,17 +214,19 @@ test("counts only individually valid items and keeps invalid items out of progre
     onProgress: (value) => progress.push(value),
   });
 
-  assert.equal(issue.items.length, 11);
-  assert.equal(progress.at(-1).completedItems, 11);
+  assert.equal(issue.items.length, 12);
+  assert.equal(progress.at(-1).completedItems, 12);
+  assert.equal(progress.at(-1).invalidItems.requiredText, 1);
+  assert.equal(progress.at(-1).repairedBatches, 1);
   assert.ok(progress.some((entry) => entry.initialIssue?.items.length === 5));
   assert.ok(progress.every((entry) => entry.initialIssue?.items.every((item) => item.fact) ?? true));
 });
 
-test("skips a generated item that cites an unknown candidate", async () => {
+test("repairs a generated item that initially cites an unknown candidate", async () => {
   const issue = await generateIssueContent({
     doubao: fakeDoubao({ invalidSource: true }), date: "2026-09-11", candidates: candidates(), preferences: {}, existingItems: [],
   });
-  assert.equal(issue.items.length, 11);
+  assert.equal(issue.items.length, 12);
 });
 
 test("does not keep an item when its trusted candidate has no verified publication date", async () => {

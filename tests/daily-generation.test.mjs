@@ -165,14 +165,15 @@ test("publishes a second version when one valid item is added before later model
 });
 
 test("does not publish a duplicate second version when background work adds no valid items", async () => {
-  let modelCall = 0;
   const context = await fixture({
     doubaoOverride: { async chat(request) {
-      modelCall += 1;
       const body = JSON.parse(request.messages.at(-1).content);
-      if (modelCall > 3) throw Object.assign(new Error("later batch failed"), { code: "provider_timeout" });
+      const firstId = body.untrustedCandidates[0].id;
+      if (!new Set(["candidate-1", "candidate-3", "candidate-5"]).has(firstId)) {
+        throw Object.assign(new Error("later batch failed"), { code: "provider_timeout" });
+      }
       const items = body.untrustedCandidates.map((candidate) => generatedItem(candidate));
-      if (modelCall === 3) items[1].fact = "";
+      if (firstId === "candidate-5") items[1].fact = "";
       return { items };
     } },
   });
@@ -182,6 +183,7 @@ test("does not publish a duplicate second version when background work adds no v
 
   assert.equal(final.stage, "completed");
   assert.equal(final.result.version, 1);
+  assert.equal(final.invalidItems.requiredText, 2);
   assert.equal(manifest.issues[0].versions.length, 1);
 });
 

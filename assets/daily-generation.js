@@ -25,11 +25,24 @@ export function generationCounts(job) {
   } else if ((job.failedBatches ?? 0) > 0) {
     completion = ` · 已跳过失败批次 ${job.failedBatches} 个`;
   }
+  const invalidLabels = {
+    requiredText: "缺必要文字",
+    invalidDate: "日期无效",
+    invalidEnum: "枚举无效",
+    invalidStructure: "结构无效",
+    unknownCandidate: "来源编号无效",
+    duplicateCandidate: "来源编号重复",
+  };
+  const invalid = Object.entries(job.invalidItems ?? {})
+    .filter(([key, value]) => invalidLabels[key] && Number.isInteger(value) && value > 0)
+    .map(([key, value]) => `${invalidLabels[key]} ${value}`);
+  const modelValidation = invalid.length ? ` · 模型格式问题：${invalid.join("、")}` : "";
+  const repaired = (job.repairedBatches ?? 0) > 0 ? ` · 已纠正 ${job.repairedBatches} 批` : "";
   const discarded = job.discarded ?? {};
   const values = [discarded.missingDate, discarded.outsideWindow, discarded.duplicate, discarded.invalid].map((value) => value ?? 0);
   return values.some((value) => value > 0)
-    ? `${base}${completion} · 淘汰：缺日期 ${values[0]}、超范围 ${values[1]}、重复 ${values[2]}、其他 ${values[3]}`
-    : `${base}${completion}`;
+    ? `${base}${completion}${modelValidation}${repaired} · 淘汰：缺日期 ${values[0]}、超范围 ${values[1]}、重复 ${values[2]}、其他 ${values[3]}`
+    : `${base}${completion}${modelValidation}${repaired}`;
 }
 
 export function generationPayload({ mode, date, focusMore, focusLess, temporaryFocus, yesterdayComment }) {
