@@ -55,8 +55,8 @@ for (const issueRef of index.issues) {
     );
   }
   assert.ok(
-    issueRef.itemCount >= 10 && issueRef.itemCount <= 30,
-    `${issueRef.date}: itemCount must be between 10 and 30`,
+    issueRef.itemCount >= 10 && issueRef.itemCount <= 20,
+    `${issueRef.date}: itemCount must be between 10 and 20`,
   );
 
   const issue = await readJson(issueRef.file);
@@ -72,8 +72,8 @@ for (const issueRef of index.issues) {
     `${issueRef.file}: invalid readingMinutes`,
   );
   assert.ok(
-    issue.items.length >= 10 && issue.items.length <= 30,
-    `${issueRef.file}: expected 10 to 30 items`,
+    issue.items.length >= 10 && issue.items.length <= 20,
+    `${issueRef.file}: expected 10 to 20 items`,
   );
   assert.equal(
     issue.items.length,

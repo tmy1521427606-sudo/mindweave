@@ -16,7 +16,8 @@ export function generationStage(stage) {
 }
 
 export function generationCounts(job) {
-  const base = `候选 ${job.candidates ?? 0} · 已完成 ${job.completedItems ?? 0} · 搜索 ${job.searchCalls ?? 0} 次 · 模型 ${job.modelCalls ?? 0} 次`;
+  const target = Number.isInteger(job.targetItems) && job.targetItems > 0 ? ` / 目标 ${job.targetItems}` : "";
+  const base = `候选 ${job.candidates ?? 0} · 已完成 ${job.completedItems ?? 0}${target} · 搜索 ${job.searchCalls ?? 0} 次 · 模型 ${job.modelCalls ?? 0} 次`;
   let completion = "";
   if (job.result?.partial && job.result.reason === "generation_timeout") {
     completion = ` · 达到时间上限，已保留 ${job.completedItems ?? 0} 条`;

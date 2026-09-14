@@ -194,6 +194,7 @@ test("publishes and indexes only after every generation stage succeeds", async (
   assert.equal(final.stage, "completed");
   assert.equal(final.result.version, 2);
   assert.equal(final.completedItems, 16);
+  assert.equal(final.targetItems, 16);
   assert.ok(final.searchCalls >= 6);
   assert.ok(final.modelCalls >= 3);
   assert.deepEqual(final.discarded, { missingDate: 0, outsideWindow: 0, duplicate: 0, invalid: 0 });

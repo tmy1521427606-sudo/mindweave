@@ -22,10 +22,11 @@ test("generation progress explains why search results were discarded", () => {
   assert.equal(generationCounts({
     candidates: 8,
     completedItems: 0,
+    targetItems: 20,
     searchCalls: 12,
     modelCalls: 0,
     discarded: { missingDate: 9, outsideWindow: 4, duplicate: 2, invalid: 1 },
-  }), "候选 8 · 已完成 0 · 搜索 12 次 · 模型 0 次 · 淘汰：缺日期 9、超范围 4、重复 2、其他 1");
+  }), "候选 8 · 已完成 0 / 目标 20 · 搜索 12 次 · 模型 0 次 · 淘汰：缺日期 9、超范围 4、重复 2、其他 1");
 });
 
 test("generation progress marks a time-limited issue that kept completed items", () => {

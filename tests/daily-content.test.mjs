@@ -65,7 +65,7 @@ function fakeDoubao({ invalidSource = false, failFirst = false } = {}) {
   };
 }
 
-test("generates a validated 10-30 item issue and resolves trusted sources", async () => {
+test("generates a validated 10-20 item issue and resolves trusted sources", async () => {
   const issue = await generateIssueContent({
     doubao: fakeDoubao(), date: "2026-09-11", candidates: candidates(), preferences: {}, existingItems: [],
   });
@@ -74,6 +74,22 @@ test("generates a validated 10-30 item issue and resolves trusted sources", asyn
   assert.equal(issue.items[0].score.total, 78);
   assert.ok(new Set(issue.items.flatMap((item) => item.topics)).size >= 3);
   assert.equal(issue.summary.length, 4);
+});
+
+test("stops generation at twenty valid items", async () => {
+  const batchSizes = [];
+  const doubao = { async chat(request) {
+    const body = JSON.parse(request.messages.at(-1).content);
+    batchSizes.push(body.untrustedCandidates.length);
+    return { items: body.untrustedCandidates.map((candidate) => generated(candidate.id, candidate.sequence)) };
+  } };
+
+  const issue = await generateIssueContent({
+    doubao, date: "2026-09-11", candidates: candidates(25), preferences: {}, existingItems: [],
+  });
+
+  assert.equal(issue.items.length, 20);
+  assert.equal(batchSizes.reduce((sum, size) => sum + size, 0), 20);
 });
 
 test("limits detailed generation requests to two items so slow models can finish each batch", async () => {
