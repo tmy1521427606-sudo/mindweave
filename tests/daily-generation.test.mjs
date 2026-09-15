@@ -7,7 +7,7 @@ import { initializeSchema, openDatabase } from "../lib/database.mjs";
 import { createDailyGenerationService } from "../lib/daily-generation.mjs";
 import { readIssueManifest } from "../lib/issue-versions.mjs";
 
-async function fixture({ searchFailure = false, hardTimeoutMs = 10_000, onFailure, doubaoOverride } = {}) {
+async function fixture({ searchFailure = false, hardTimeoutMs, onFailure, doubaoOverride, setTimer, clearTimer } = {}) {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), "mindweave-generation-"));
   await writeFile(path.join(dataDir, "index.json"), JSON.stringify({ issues: [] }));
   const db = openDatabase(":memory:");
@@ -50,13 +50,28 @@ async function fixture({ searchFailure = false, hardTimeoutMs = 10_000, onFailur
     })) };
   } };
   const service = createDailyGenerationService({
-    db, dataDir, doubao, search, hardTimeoutMs,
+    db, dataDir, doubao, search,
+    ...(hardTimeoutMs === undefined ? {} : { hardTimeoutMs }),
+    ...(setTimer === undefined ? {} : { setTimer }),
+    ...(clearTimer === undefined ? {} : { clearTimer }),
     clock: () => new Date("2026-09-11T01:00:00.000Z"),
     syncIssues: async () => { syncCalls += 1; },
     onFailure,
   });
   return { dataDir, db, service, get syncCalls() { return syncCalls; } };
 }
+
+test("default job deadline is thirty minutes", async () => {
+  let scheduledDelay;
+  const context = await fixture({
+    setTimer: (_callback, delay) => { scheduledDelay = delay; return 1; },
+    clearTimer: () => {},
+  });
+  const { jobId } = context.service.start(input());
+  await terminal(context.service, jobId);
+
+  assert.equal(scheduledDelay, 30 * 60 * 1000);
+});
 
 const input = (overrides = {}) => ({
   mode: "full",
