@@ -267,7 +267,7 @@ test("Doubao chat allows slow generation without extending other provider reques
     await doubao.embed(["test"]);
     await tavily.search("test");
 
-    assert.deepEqual(timeoutCalls, [90_000, 20_000, 20_000]);
+    assert.deepEqual(timeoutCalls, [180_000, 20_000, 20_000]);
   } finally {
     AbortSignal.timeout = originalTimeout;
   }
