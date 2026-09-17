@@ -24,6 +24,7 @@ import {
   toggleFeedback,
   toggleInterestSignal,
   itemTimingLabel,
+  issueDateLabel,
   personalizedScore,
   viewStateToParams,
   writeStoredJson,
@@ -191,18 +192,37 @@ test("homepage opens the latest issue instead of a stored older date", () => {
   assert.equal(state.search, "Agent");
 });
 
-test("issue navigation exposes today, yesterday, and older archives", () => {
+test("issue navigation does not label a stale latest issue as today", () => {
   const navigation = buildIssueNavigation([
     { date: "2026-09-07", status: "final", itemCount: 10 },
     { date: "2026-09-09", status: "tracking", itemCount: 18 },
     { date: "2026-09-08", status: "final", itemCount: 20 },
-  ]);
-  assert.equal(navigation.today.date, "2026-09-09");
-  assert.equal(navigation.yesterday.date, "2026-09-08");
+  ], "2026-09-11");
+  assert.equal(navigation.today, null);
+  assert.equal(navigation.latest.date, "2026-09-09");
+  assert.equal(navigation.previous.date, "2026-09-08");
   assert.deepEqual(navigation.archive.map((issue) => issue.date), ["2026-09-07"]);
 });
 
+test("issue navigation exposes an issue as today only on its calendar date", () => {
+  const navigation = buildIssueNavigation([
+    { date: "2026-09-09", status: "tracking", itemCount: 18 },
+    { date: "2026-09-08", status: "final", itemCount: 20 },
+  ], "2026-09-09");
+  assert.equal(navigation.today.date, "2026-09-09");
+  assert.equal(navigation.latest.date, "2026-09-09");
+  assert.equal(navigation.previous.date, "2026-09-08");
+});
+
+test("stale latest issue uses a recent-issue label instead of a today label", () => {
+  assert.equal(issueDateLabel(
+    { date: "2026-09-09", status: "tracking" },
+    { todayDate: "2026-09-11", latestDate: "2026-09-09" },
+  ), "最近一期");
+});
+
 test("timing labels distinguish live additions from follow-up material", () => {
+  assert.equal(itemTimingLabel({ dateStatus: "unverified", isBackfill: false }, "tracking"), "日期待核验");
   assert.equal(itemTimingLabel({ isBackfill: false }, "tracking"), "今日新增");
   assert.equal(itemTimingLabel({ isBackfill: true }, "tracking"), "热点跟进");
   assert.equal(itemTimingLabel({ isBackfill: false }, "final"), "当日");

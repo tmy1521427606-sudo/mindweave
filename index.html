@@ -24,6 +24,53 @@
       <a class="knowledge-link" href="knowledge.html">我的知识库</a>
     </header>
 
+    <section id="daily-generation" class="page-shell generation-panel" aria-labelledby="generation-heading">
+      <div class="generation-heading-row">
+        <div>
+          <p class="section-kicker">MORNING CALIBRATION</p>
+          <h2 id="generation-heading">生成今日日报</h2>
+          <p id="generation-target-date" class="panel-note"></p>
+          <p class="panel-note">选项和点评都可以跳过。只有点击生成后才会联网并调用模型，预计需要 3～8 分钟。</p>
+        </div>
+        <div id="generation-version-controls" class="generation-version-controls" hidden>
+          <label for="generation-version">今日版本</label>
+          <select id="generation-version"></select>
+        </div>
+      </div>
+      <form id="generation-form" class="generation-form">
+        <details class="generation-options">
+          <summary>今日偏好（可选）</summary>
+          <div class="generation-options-body">
+            <fieldset>
+              <legend>今天多看</legend>
+              <div id="generation-more-topics" class="generation-topic-grid"></div>
+            </fieldset>
+            <fieldset>
+              <legend>今天少看</legend>
+              <div id="generation-less-topics" class="generation-topic-grid"></div>
+            </fieldset>
+            <div class="generation-text-fields">
+              <label for="generation-temporary-focus">临时关注 <span id="generation-focus-count">0 / 300</span></label>
+              <textarea id="generation-temporary-focus" maxlength="300" rows="2" placeholder="例如：重点关注国内新模型与电商 Agent"></textarea>
+              <label for="generation-yesterday-comment">昨日点评 <span id="generation-comment-count">0 / 1000</span></label>
+              <textarea id="generation-yesterday-comment" maxlength="1000" rows="3" placeholder="例如：模型对比有用，但知识图谱部分太浅"></textarea>
+            </div>
+          </div>
+        </details>
+        <div class="generation-actions">
+          <button id="generation-submit" class="primary-button" type="submit" name="mode" value="full">生成今日日报</button>
+          <button id="generation-supplement" class="quiet-button" type="submit" name="mode" value="supplement" hidden>只补充新内容</button>
+          <span class="panel-note">将产生豆包与 Tavily 调用费用；不会自动推送 GitHub。</span>
+        </div>
+      </form>
+      <div id="generation-progress" class="generation-progress" hidden>
+        <progress id="generation-progress-bar" max="6" value="0">0 / 6</progress>
+        <strong id="generation-stage">等待开始</strong>
+        <span id="generation-counts"></span>
+      </div>
+      <p id="generation-status" class="generation-status" role="status" aria-live="polite" aria-atomic="true">正在检查生成配置…</p>
+    </section>
+
     <nav class="page-shell issue-switcher" aria-label="日报时间导航">
       <div>
         <p class="section-kicker">ISSUE NAVIGATION</p>

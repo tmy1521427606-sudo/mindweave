@@ -1,11 +1,14 @@
 import { createServer } from "node:http";
+import { appendFileSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createApiHandler } from "./lib/api.mjs";
 import { initializeSchema, openDatabase, syncIssueDirectory } from "./lib/database.mjs";
 import { createLearningAgent } from "./lib/agent.mjs";
-import { createDoubaoClient, createTavilyClient } from "./lib/providers.mjs";
+import { createDoubaoClient, createSourceDateResolver, createTavilyClient } from "./lib/providers.mjs";
+import { createDailyGenerationService } from "./lib/daily-generation.mjs";
+import { listIssueVersions } from "./lib/issue-versions.mjs";
 
 const siteRoot = path.dirname(fileURLToPath(import.meta.url));
 
@@ -15,6 +18,36 @@ export function createConfiguredAgent({ db, env = process.env, fetchImpl = fetch
     embeddingModel: env.DOUBAO_EMBEDDING_MODEL, fetchImpl });
   const webSearch = createTavilyClient({ apiKey: env.TAVILY_API_KEY ?? "", fetchImpl });
   return createLearningAgent({ db, doubao, webSearch });
+}
+
+export function createConfiguredDailyGeneration({
+  db,
+  dataDir = path.join(siteRoot, "data"),
+  env = process.env,
+  fetchImpl = fetch,
+  clock,
+  syncIssues,
+  onFailure,
+} = {}) {
+  if (!env.ARK_API_KEY?.trim() || !env.DOUBAO_CHAT_MODEL?.trim() || !env.TAVILY_API_KEY?.trim()) return null;
+  const doubao = createDoubaoClient({
+    apiKey: env.ARK_API_KEY,
+    chatModel: env.DOUBAO_CHAT_MODEL,
+    embeddingModel: env.DOUBAO_EMBEDDING_MODEL,
+    fetchImpl,
+  });
+  const tavily = createTavilyClient({ apiKey: env.TAVILY_API_KEY, fetchImpl });
+  const resolvePublishedDate = createSourceDateResolver({ fetchImpl });
+  return createDailyGenerationService({
+    db,
+    dataDir,
+    doubao,
+    search: (query, options) => tavily.search(query, options),
+    resolvePublishedDate,
+    clock,
+    onFailure,
+    syncIssues: syncIssues ?? (() => syncIssueDirectory(db, dataDir)),
+  });
 }
 
 export function resolveStaticPath(root, urlPath) {
@@ -111,7 +144,19 @@ async function startServer(port) {
   const db = openDatabase(path.join(varDir, "cognitive-daily.sqlite"));
   initializeSchema(db);
   await syncIssueDirectory(db, path.join(siteRoot, "data"));
-  const server = createStaticServer(siteRoot, createApiHandler({ db, agent: createConfiguredAgent({ db }) }));
+  const dataDir = path.join(siteRoot, "data");
+  const errorLogPath = path.join(varDir, "mindweave-errors.log");
+  const dailyGeneration = createConfiguredDailyGeneration({
+    db,
+    dataDir,
+    onFailure: (record) => appendFileSync(errorLogPath, `${JSON.stringify(record)}\n`, "utf8"),
+  });
+  const server = createStaticServer(siteRoot, createApiHandler({
+    db,
+    agent: createConfiguredAgent({ db }),
+    dailyGeneration,
+    issueVersions: (date) => listIssueVersions(dataDir, date),
+  }));
   server.listen(port, "127.0.0.1", () => {
     const address = server.address();
     console.log(`http://127.0.0.1:${address.port}/`);

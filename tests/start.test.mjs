@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 const siteRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const startScript = path.join(siteRoot, "start.ps1");
 const databasePath = path.join(siteRoot, "var", "cognitive-daily.sqlite");
+const errorLogPath = path.join(siteRoot, "var", "mindweave-errors.log");
 function harness({ healthReady = true, serverOutput = "server output format changed", assertWindowStyles = false } = {}) {
   const serverExited = !healthReady;
   return `
@@ -95,7 +96,9 @@ test("start script reports the safe contract when server console output changes"
   assert.deepEqual(lines.slice(1), [
     "豆包：已配置",
     "联网搜索：已配置",
+    "日报生成：已配置",
     `知识库：${databasePath}`,
+    `错误日志：${errorLogPath}`,
   ]);
   assert.equal(lines.join("\n").includes("fake-"), false);
   assert.equal(lines.join("\n").includes("server output format changed"), false);
@@ -106,13 +109,14 @@ test("start script marks missing provider configuration without exposing values"
 
   assert.equal(lines[1], "豆包：未配置");
   assert.equal(lines[2], "联网搜索：未配置");
+  assert.equal(lines[3], "日报生成：未配置");
   assert.equal(lines.join("\n").includes("fake-"), false);
 });
 
 test("start script hides the Node helper while leaving the browser visible", () => {
   const lines = startWith({ ARK_API_KEY: "", DOUBAO_CHAT_MODEL: "", TAVILY_API_KEY: "" }, { assertWindowStyles: true });
 
-  assert.equal(lines.length, 4);
+  assert.equal(lines.length, 6);
   assert.equal(lines[1], "豆包：未配置");
   assert.equal(lines[2], "联网搜索：未配置");
 });

@@ -2,3 +2,4 @@ var/*.sqlite
 var/*.sqlite-shm
 var/*.sqlite-wal
 .env
+.worktrees/

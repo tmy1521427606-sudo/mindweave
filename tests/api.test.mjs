@@ -90,6 +90,51 @@ test("searches the archive and sends non-cacheable JSON", async () => {
   });
 });
 
+test("starts, polls, and lists versions for daily generation", async () => {
+  const starts = [];
+  const dailyGeneration = {
+    start(value) { starts.push(value); return { jobId: "job-1" }; },
+    get(jobId) { return jobId === "job-1" ? { jobId, stage: "searching", candidates: 4 } : null; },
+  };
+  await withServer({
+    dailyGeneration,
+    issueVersions: async (date) => ({ date, currentVersion: 2, versions: [{ version: 2, current: true }] }),
+  }, async (base) => {
+    const started = await fetch(`${base}/api/daily-generations`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ mode: "full", date: "2026-09-11", focusMore: [], focusLess: [], temporaryFocus: "", yesterdayComment: "" }),
+    });
+    assert.equal(started.status, 202);
+    assert.deepEqual(await started.json(), { jobId: "job-1" });
+    assert.equal(starts.length, 1);
+    assert.equal((await fetch(`${base}/api/daily-generations/job-1`).then((response) => response.json())).stage, "searching");
+    assert.equal((await fetch(`${base}/api/issues/2026-09-11/versions`).then((response) => response.json())).currentVersion, 2);
+    assert.equal((await fetch(`${base}/api/daily-generations/missing`)).status, 404);
+  });
+});
+
+test("daily generation API validates requests and maps configuration and concurrency", async () => {
+  await withServer({}, async (base) => {
+    const response = await fetch(`${base}/api/daily-generations`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({}),
+    });
+    assert.equal(response.status, 503);
+  });
+  const dailyGeneration = {
+    start() { throw Object.assign(new Error("internal detail"), { code: "generation_in_progress" }); },
+    get() { return null; },
+  };
+  await withServer({ dailyGeneration }, async (base) => {
+    const response = await fetch(`${base}/api/daily-generations`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "full" }),
+    });
+    const body = await response.json();
+    assert.equal(response.status, 409);
+    assert.equal(JSON.stringify(body).includes("internal detail"), false);
+  });
+});
+
 test("lists only matching knowledge cards in most-recent-first order", async () => {
   await withServer({}, async (base) => {
     const response = await fetch(`${base}/api/knowledge?topic=Agent&status=verified`);

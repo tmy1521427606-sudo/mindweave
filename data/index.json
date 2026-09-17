@@ -1,6 +1,126 @@
 {
   "issues": [
     {
+      "date": "2026-09-17",
+      "file": "2026-09-17-v2.json",
+      "itemCount": 20,
+      "status": "tracking",
+      "currentVersion": 2,
+      "versions": [
+        {
+          "version": 1,
+          "file": "2026-09-17-v1.json",
+          "generatedAt": "2026-09-17T01:28:49.602Z",
+          "mode": "full"
+        },
+        {
+          "version": 2,
+          "file": "2026-09-17-v2.json",
+          "generatedAt": "2026-09-17T01:36:15.634Z",
+          "mode": "full"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-16",
+      "file": "2026-09-16-v2.json",
+      "itemCount": 20,
+      "status": "tracking",
+      "currentVersion": 2,
+      "versions": [
+        {
+          "version": 1,
+          "file": "2026-09-16-v1.json",
+          "generatedAt": "2026-09-16T01:52:24.304Z",
+          "mode": "full"
+        },
+        {
+          "version": 2,
+          "file": "2026-09-16-v2.json",
+          "generatedAt": "2026-09-16T01:59:58.714Z",
+          "mode": "full"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-15",
+      "file": "2026-09-15-v4.json",
+      "itemCount": 20,
+      "status": "tracking",
+      "currentVersion": 4,
+      "versions": [
+        {
+          "version": 1,
+          "file": "2026-09-15-v1.json",
+          "generatedAt": "2026-09-15T08:11:12.977Z",
+          "mode": "full"
+        },
+        {
+          "version": 2,
+          "file": "2026-09-15-v2.json",
+          "generatedAt": "2026-09-15T08:18:16.732Z",
+          "mode": "full"
+        },
+        {
+          "version": 3,
+          "file": "2026-09-15-v3.json",
+          "generatedAt": "2026-09-15T08:34:24.220Z",
+          "mode": "full"
+        },
+        {
+          "version": 4,
+          "file": "2026-09-15-v4.json",
+          "generatedAt": "2026-09-15T08:41:50.128Z",
+          "mode": "full"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-14",
+      "file": "2026-09-14-v6.json",
+      "itemCount": 8,
+      "status": "tracking",
+      "currentVersion": 6,
+      "versions": [
+        {
+          "version": 1,
+          "file": "2026-09-14-v1.json",
+          "generatedAt": "2026-09-14T02:01:22.783Z",
+          "mode": "full"
+        },
+        {
+          "version": 2,
+          "file": "2026-09-14-v2.json",
+          "generatedAt": "2026-09-14T02:02:34.996Z",
+          "mode": "full"
+        },
+        {
+          "version": 3,
+          "file": "2026-09-14-v3.json",
+          "generatedAt": "2026-09-14T02:11:10.765Z",
+          "mode": "full"
+        },
+        {
+          "version": 4,
+          "file": "2026-09-14-v4.json",
+          "generatedAt": "2026-09-14T02:15:07.985Z",
+          "mode": "full"
+        },
+        {
+          "version": 5,
+          "file": "2026-09-14-v5.json",
+          "generatedAt": "2026-09-14T02:41:44.532Z",
+          "mode": "full"
+        },
+        {
+          "version": 6,
+          "file": "2026-09-14-v6.json",
+          "generatedAt": "2026-09-14T02:42:37.226Z",
+          "mode": "full"
+        }
+      ]
+    },
+    {
       "date": "2026-09-09",
       "file": "2026-09-09.json",
       "itemCount": 18,

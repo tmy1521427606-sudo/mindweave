@@ -151,18 +151,39 @@ export function personalizedScore(item, profile) {
   return { editorial, personalizedBoost, total: editorial + personalizedBoost };
 }
 
-export function buildIssueNavigation(issues) {
+export function shanghaiDate(now = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
+export function buildIssueNavigation(issues, todayDate = shanghaiDate()) {
   const sorted = [...issues].sort((a, b) => b.date.localeCompare(a.date));
-  const today = sorted.find((issue) => issue.status === "tracking") ?? sorted[0] ?? null;
-  const finalIssues = sorted.filter((issue) => issue !== today);
+  const latest = sorted[0] ?? null;
+  const today = sorted.find((issue) => issue.date === todayDate) ?? null;
+  const primary = today ?? latest;
+  const remaining = sorted.filter((issue) => issue !== primary);
+  const previous = remaining[0] ?? null;
   return {
     today,
-    yesterday: finalIssues[0] ?? null,
-    archive: finalIssues.slice(1),
+    latest,
+    previous,
+    yesterday: previous,
+    archive: remaining.slice(1),
   };
 }
 
+export function issueDateLabel(issue, { todayDate = shanghaiDate(), latestDate } = {}) {
+  if (issue?.date === todayDate) return issue.status === "tracking" ? "今日追踪 · 进行中" : "今日日报 · 已定稿";
+  if (issue?.date === latestDate) return "最近一期";
+  return issue?.status === "tracking" ? "往期追踪" : "往期日报 · 已定稿";
+}
+
 export function itemTimingLabel(item, issueStatus) {
+  if (item.dateStatus === "unverified") return "日期待核验";
   if (issueStatus === "tracking") {
     return item.isBackfill ? "热点跟进" : "今日新增";
   }

@@ -12,12 +12,14 @@ import {
   loadJson,
   legacySignalEntries,
   itemTimingLabel,
+  issueDateLabel,
   migrateLegacySignals,
   normalizeViewState,
   personalizedScore,
   readStoredJson,
   resolveViewState,
   sortItems,
+  shanghaiDate,
   SORTS,
   STORAGE_KEYS,
   toggleInterestSignal,
@@ -25,6 +27,7 @@ import {
   writeStoredJson,
 } from "./shared.js";
 import { mountLearningAgent } from "./agent.js";
+import { initializeDailyGeneration, versionFileForEntry } from "./daily-generation.js";
 
 const interestLabels = {
   bookmark: "收藏",
@@ -67,6 +70,7 @@ const app = {
   explicitSort: false,
   allItemIds: [],
   historyLoadFailed: false,
+  version: null,
 };
 
 let archiveSearchTimer = null;
@@ -414,12 +418,13 @@ function persistView() {
   const params = viewStateToParams(app.view, {
     includeSort: app.explicitSort || SORTS.includes(app.manualSort),
   });
+  if (app.version) params.set("version", String(app.version));
   history.replaceState(null, "", `${location.pathname}?${params}`);
   writeStoredJson(localStorage, STORAGE_KEYS.viewState, app.view);
 }
 
 function renderSummary(issue) {
-  elements["summary-heading"].textContent = issue.status === "tracking"
+  elements["summary-heading"].textContent = displayIssueStatus(issue) === "tracking"
     ? "今日 4 点摘要"
     : "本期 4 点摘要";
   setChildren(
@@ -633,7 +638,7 @@ function makeNewsCard(item, index) {
   badgeRow.className = "chip-row";
   badgeRow.append(
     makeChip(
-      itemTimingLabel(item, app.issue.status),
+      itemTimingLabel(item, displayIssueStatus(app.issue)),
       item.isBackfill ? "chip-backfill" : "chip-yesterday",
     ),
     makeChip(item.contentType === "learning" ? "技术学习" : "新闻事件", "chip-kind"),
@@ -656,7 +661,8 @@ function makeNewsCard(item, index) {
 
   const heading = document.createElement("h3");
   const link = document.createElement("a");
-  link.href = `detail.html?date=${encodeURIComponent(app.issue.date)}&id=${encodeURIComponent(item.id)}&sort=${encodeURIComponent(app.view.sort)}`;
+  const versionParam = app.version ? `&version=${app.version}` : "";
+  link.href = `detail.html?date=${encodeURIComponent(app.issue.date)}&id=${encodeURIComponent(item.id)}&sort=${encodeURIComponent(app.view.sort)}${versionParam}`;
   link.textContent = item.title;
   link.addEventListener("click", () => {
     writeStoredJson(localStorage, STORAGE_KEYS.scrollPosition, window.scrollY);
@@ -666,7 +672,7 @@ function makeNewsCard(item, index) {
   const meta = textElement(
     "p",
     "card-meta",
-    `${formatDate(item.publishedDate)} · ${item.source?.name ?? "本期未提供"} · 第 ${index + 1} 条`,
+    `${item.dateStatus === "unverified" ? "日期待核验" : formatDate(item.publishedDate)} · ${item.source?.name ?? "本期未提供"} · 第 ${index + 1} 条`,
   );
   const scoreExplanation = textElement(
     "p",
@@ -717,8 +723,9 @@ function renderIssueMeta(issue) {
   const currentCount = issue.items.filter((item) => !item.isBackfill).length;
   const backfillCount = issue.items.length - currentCount;
   const learningCount = issue.items.filter((item) => item.contentType === "learning").length;
-  const tracking = issue.status === "tracking";
-  elements["issue-date-label"].textContent = `${tracking ? "今日追踪 · 进行中" : "日报定稿"} · ${formatDate(issue.date)}`;
+  const tracking = displayIssueStatus(issue) === "tracking";
+  const latestDate = app.manifest.issues[0]?.date;
+  elements["issue-date-label"].textContent = `${issueDateLabel(issue, { todayDate: shanghaiDate(), latestDate })} · ${formatDate(issue.date)}`;
   elements["issue-counts"].textContent = `${issue.items.length} 条 · ${tracking ? "今日新增" : "当日"} ${currentCount} · ${tracking ? "热点跟进" : "回溯"} ${backfillCount} · 技术学习 ${learningCount}`;
   elements["issue-reading"].textContent = `约 ${issue.readingMinutes} 分钟`;
   elements["issue-generated"].textContent = tracking && issue.updatedAt
@@ -749,7 +756,7 @@ function populateDates() {
 }
 
 function renderIssueNavigation() {
-  const navigation = buildIssueNavigation(app.manifest.issues);
+  const navigation = buildIssueNavigation(app.manifest.issues, shanghaiDate());
   const setShortcut = (element, issue, label) => {
     element.hidden = !issue;
     if (!issue) return;
@@ -758,8 +765,8 @@ function renderIssueNavigation() {
     if (issue.date === app.view?.date) element.setAttribute("aria-current", "page");
     else element.removeAttribute("aria-current");
   };
-  setShortcut(elements["today-link"], navigation.today, "今天");
-  setShortcut(elements["yesterday-link"], navigation.yesterday, "昨天");
+  setShortcut(elements["today-link"], navigation.today ?? navigation.latest, navigation.today ? "今天" : "最近一期");
+  setShortcut(elements["yesterday-link"], navigation.previous, "上一期");
   setChildren(
     elements["archive-links"],
     navigation.archive.map((issue) => {
@@ -772,10 +779,14 @@ function renderIssueNavigation() {
   elements["archive-links"].prepend(textElement("span", "archive-label", "往期"));
 }
 
+function displayIssueStatus(issue) {
+  return issue?.date === shanghaiDate() ? issue.status : "final";
+}
+
 async function loadIssue(date) {
   const issueRef = app.manifest.issues.find((entry) => entry.date === date);
   if (!issueRef) throw new Error(`找不到 ${date} 的日报。`);
-  const issue = await loadJson(`data/${issueRef.file}`);
+  const issue = await loadJson(`data/${versionFileForEntry(issueRef, app.version)}`);
   app.issue = issue;
   app.view.date = issue.date;
   renderIssueNavigation();
@@ -874,6 +885,8 @@ async function initialize() {
     populateDates();
     const storedView = readStoredJson(localStorage, STORAGE_KEYS.viewState, null);
     const params = new URLSearchParams(location.search);
+    const requestedVersion = Number(params.get("version"));
+    app.version = Number.isInteger(requestedVersion) && requestedVersion > 0 ? requestedVersion : null;
     app.view = resolveViewState(
       params,
       safeObject(storedView),
@@ -889,6 +902,7 @@ async function initialize() {
     renderIssueNavigation();
     await loadIssue(app.view.date);
     await loadMetricIds();
+    await initializeDailyGeneration();
     const savedPosition = readStoredJson(localStorage, STORAGE_KEYS.scrollPosition, 0);
     if (typeof savedPosition !== "number") {
       localStorage.removeItem(STORAGE_KEYS.scrollPosition);
@@ -918,6 +932,7 @@ elements["filter-panel"].addEventListener("input", async (event) => {
 elements["issue-date"].addEventListener("change", async () => {
   if (!app.manifest) return;
   app.view = readControls();
+  app.version = null;
   writeStoredJson(localStorage, STORAGE_KEYS.scrollPosition, 0);
   try {
     await loadIssue(elements["issue-date"].value);

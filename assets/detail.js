@@ -108,12 +108,14 @@ let profile = { topics: {}, depth: 0, angles: {}, evidenceCount: 0 };
 let currentViewState = null;
 let manualSort = null;
 let inboundExplicitSort = false;
+let currentVersion = null;
 
 function updateBackLink() {
   if (!currentViewState) return;
   const params = viewStateToParams(currentViewState, {
     includeSort: inboundExplicitSort || SORTS.includes(manualSort),
   });
+  if (currentVersion) params.set("version", String(currentVersion));
   elements["back-link"].href = `index.html?${params}`;
 }
 
@@ -190,7 +192,7 @@ async function commitInterestSignal(signal) {
       );
       writeStoredJson(localStorage, STORAGE_KEYS.viewState, currentViewState);
       updateBackLink();
-      if (currentIssue) renderNavigation(currentIssue, currentViewState);
+      if (currentIssue) renderNavigation(currentIssue, currentViewState, currentVersion);
     }
     renderPersonalizedTotal(currentItem);
     elements["interest-status"].textContent = enabled
@@ -402,11 +404,12 @@ function renderFeedback() {
   }
 }
 
-function detailHref(date, id, sort) {
-  return `detail.html?date=${encodeURIComponent(date)}&id=${encodeURIComponent(id)}&sort=${encodeURIComponent(sort)}`;
+function detailHref(date, id, sort, versionNumber = null) {
+  const version = versionNumber ? `&version=${versionNumber}` : "";
+  return `detail.html?date=${encodeURIComponent(date)}&id=${encodeURIComponent(id)}&sort=${encodeURIComponent(sort)}${version}`;
 }
 
-function setNeighbor(direction, item, date, sort) {
+function setNeighbor(direction, item, date, sort, version = null) {
   for (const prefix of ["top-", ""]) {
     const link = elements[`${prefix}${direction}-link`];
     const boundary = elements[`${prefix}${direction}-boundary`];
@@ -418,21 +421,21 @@ function setNeighbor(direction, item, date, sort) {
       continue;
     }
     link.hidden = false;
-    link.href = detailHref(date, item.id, sort);
+    link.href = detailHref(date, item.id, sort, version);
     link.textContent = availableText(item.title);
     boundary.hidden = true;
   }
 }
 
-function renderNavigation(issue, viewState) {
+function renderNavigation(issue, viewState, version = null) {
   let order = getDetailOrder(issue.items, viewState, feedbackById, profile);
   let index = order.findIndex((item) => item.id === currentItem.id);
   if (index === -1) {
     order = sortItems(issue.items, "scoreDesc");
     index = order.findIndex((item) => item.id === currentItem.id);
   }
-  setNeighbor("previous", index > 0 ? order[index - 1] : null, issue.date, viewState.sort);
-  setNeighbor("next", index < order.length - 1 ? order[index + 1] : null, issue.date, viewState.sort);
+  setNeighbor("previous", index > 0 ? order[index - 1] : null, issue.date, viewState.sort, version);
+  setNeighbor("next", index < order.length - 1 ? order[index + 1] : null, issue.date, viewState.sort, version);
 }
 
 function renderItem(issue, item, viewState) {
@@ -445,7 +448,9 @@ function renderItem(issue, item, viewState) {
   renderTopics(item, issue.status);
   elements["detail-title"].textContent = title;
   elements["detail-value"].textContent = availableText(item.oneLineValue);
-  elements["detail-date"].textContent = `${item.isBackfill ? "回溯日期" : "发布日期"}：${formatDate(item.publishedDate)}`;
+  elements["detail-date"].textContent = item.dateStatus === "unverified"
+    ? "发布日期：待核验"
+    : `${item.isBackfill ? "回溯日期" : "发布日期"}：${formatDate(item.publishedDate)}`;
   elements["detail-source"].textContent = `来源：${availableText(item.source?.name)}`;
   renderPersonalizedTotal(item);
   elements["detail-fact"].textContent = availableText(item.fact);
@@ -480,13 +485,15 @@ function renderItem(issue, item, viewState) {
 
   renderFeedback();
   renderInterest();
-  renderNavigation(issue, viewState);
+  renderNavigation(issue, viewState, currentVersion);
 }
 
 async function initialize() {
   const params = new URLSearchParams(location.search);
   const date = params.get("date");
   const id = params.get("id");
+  const requestedVersion = Number(params.get("version"));
+  currentVersion = Number.isInteger(requestedVersion) && requestedVersion > 0 ? requestedVersion : null;
   if (!date || !id) {
     renderError("链接缺少日报日期或新闻 ID。");
     return;
@@ -521,7 +528,10 @@ async function initialize() {
       renderError(`找不到 ${date} 的日报。`);
       return;
     }
-    const issue = await loadJson(`data/${issueRef.file}`);
+    const versionFile = currentVersion
+      ? issueRef.versions?.find((entry) => entry.version === currentVersion)?.file
+      : null;
+    const issue = await loadJson(`data/${versionFile ?? issueRef.file}`);
     const item = issue.items.find((entry) => entry.id === id);
     if (!item) {
       renderError("这期日报中没有找到对应内容。");

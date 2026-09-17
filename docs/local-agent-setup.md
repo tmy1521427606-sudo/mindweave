@@ -9,7 +9,7 @@ $env:DOUBAO_CHAT_MODEL = 'your-doubao-chat-model'
 # 可选：仅在需要本地资料的向量嵌入时设置
 $env:DOUBAO_EMBEDDING_MODEL = 'your-doubao-embedding-model'
 
-# 可选：仅在允许联网搜索回退时设置
+# 学习 Agent 联网核实时可选；生成日报时必需
 $env:TAVILY_API_KEY = 'your-tavily-key'
 
 .\start.ps1
@@ -23,7 +23,30 @@ $env:TAVILY_API_KEY = 'your-tavily-key'
 Invoke-RestMethod http://127.0.0.1:<port>/api/health
 ```
 
-返回的 `doubaoConfigured` 和 `agentConfigured` 是布尔状态，不包含密钥或模型名称。
+返回的 `doubaoConfigured`、`agentConfigured`、`webSearchConfigured` 和 `dailyGenerationConfigured` 是布尔状态，不包含密钥或模型名称。
+
+## 手动生成日报
+
+同时配置 `ARK_API_KEY`、`DOUBAO_CHAT_MODEL` 和 `TAVILY_API_KEY` 后，首页顶部会启用“生成今日日报”。打开或刷新页面只读取配置状态，不会产生搜索或模型费用；付费调用必须由点击生成按钮触发。
+
+“今天多看”“今天少看”、临时关注和昨日点评都可跳过。今日选择只影响本次生成；昨日点评作为低权重长期信号保存，影响会按 14 天半衰期衰减。生成先筛选昨天的可靠来源，不足 10 条才扩展到最近 7 天，最多保存 20 条，通常耗时 3～8 分钟，30 分钟后超时停止。
+
+豆包聊天请求单次最多等待 180 秒；Tavily 搜索及其他普通请求仍为 20 秒，避免非生成请求长时间占用。
+
+当日已有内容时：
+
+- “重新生成完整版本”重新筛选并创建一个完整的新版本。
+- “只补充新内容”保留当前条目，按来源网址去重后补充新条目，总数不超过 20 条。
+- 版本文件位于 `data/YYYY-MM-DD-vN.json`，页面的“今日版本”可回看旧版。
+
+生成失败不会把未完成内容设为当前日报。自动化测试只使用假搜索与假模型，不会发送真实请求。若要把确认后的日报上传到 GitHub，请在项目根目录手动检查并执行：
+
+```powershell
+git status
+git add data\YYYY-MM-DD-vN.json data\index.json
+git commit -m "content: add daily brief YYYY-MM-DD"
+git push
+```
 
 ## 配置缺失时的本地模式
 
