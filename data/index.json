@@ -1,6 +1,27 @@
 {
   "issues": [
     {
+      "date": "2026-09-18",
+      "file": "2026-09-18-v2.json",
+      "itemCount": 20,
+      "status": "tracking",
+      "currentVersion": 2,
+      "versions": [
+        {
+          "version": 1,
+          "file": "2026-09-18-v1.json",
+          "generatedAt": "2026-09-18T01:21:20.112Z",
+          "mode": "full"
+        },
+        {
+          "version": 2,
+          "file": "2026-09-18-v2.json",
+          "generatedAt": "2026-09-18T01:25:49.174Z",
+          "mode": "full"
+        }
+      ]
+    },
+    {
       "date": "2026-09-17",
       "file": "2026-09-17-v2.json",
       "itemCount": 20,
